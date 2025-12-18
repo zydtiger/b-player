@@ -1,5 +1,11 @@
 {
   "name": "b-player",
+  "description": "Music player based on Bilibili",
+  "author": {
+    "name": "Tiger Ding",
+    "email": "zhiyuanding01@gmail.com",
+    "url": "https://github.com/zydtiger"
+  },
   "private": true,
   "version": "0.0.0",
   "type": "module",
