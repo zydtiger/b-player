@@ -4,8 +4,12 @@ import path from "node:path";
 
 import { databaseManager } from "./db";
 import { initializeIpcMainHandlers } from "./handler";
+import { registerMediaSchemes, registerMediaHandlers } from "./media";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Register custom protocol schemes before app is ready (required by Electron)
+registerMediaSchemes();
 
 // The built directory structure
 //
@@ -72,5 +76,6 @@ app.on("activate", () => {
 app.whenReady().then(async () => {
   await databaseManager.initialize();
   initializeIpcMainHandlers();
+  registerMediaHandlers(); // Register protocol handlers after app is ready
   createWindow();
 });

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ffprobe-installer/ffprobe": "^2.1.2",
+    "mime-types": "^3.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sqlite": "^5.1.1",
@@ -26,6 +27,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@types/mime-types": "^3.0.1",
     "@types/react": "^18.2.64",
     "@types/react-dom": "^18.2.21",
     "@vitejs/plugin-react": "^4.2.1",
