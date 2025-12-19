@@ -2,3 +2,4 @@ onlyBuiltDependencies:
   - '@ffprobe-installer/darwin-arm64'
   - electron
   - esbuild
+  - sqlite3
