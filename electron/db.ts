@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { Database as SQLite3DB, Statement as SQLite3Statement } from "sqlite3";
 import { Database, open } from "sqlite";
 
-import { getStoragePath } from "./utils";
+import { getStorageDir } from "./utils";
 import { MusicPiece, MusicPieceSchema } from "../shared/model";
 
 const require = createRequire(import.meta.url);
@@ -18,11 +18,11 @@ let db: Database<SQLite3DB, SQLite3Statement> | null = null;
  */
 export class DatabaseManager {
   private dbPath: string;
-  private storagePath: string;
+  private storageDir: string;
 
   constructor() {
-    this.storagePath = getStoragePath();
-    this.dbPath = path.join(this.storagePath, "db.sqlite3");
+    this.storageDir = getStorageDir();
+    this.dbPath = path.join(this.storageDir, "db.sqlite3");
   }
 
   /**
@@ -30,7 +30,7 @@ export class DatabaseManager {
    */
   async initialize(): Promise<void> {
     // Ensure storage directory exists
-    await fs.promises.mkdir(this.storagePath, { recursive: true });
+    await fs.promises.mkdir(this.storageDir, { recursive: true });
 
     // Open database connection
     db = await open({

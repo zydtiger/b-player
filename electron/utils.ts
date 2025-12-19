@@ -15,7 +15,7 @@ const ffprobe = require("@ffprobe-installer/ffprobe");
  * Gets the base storage path for music files in the app's userData directory
  * @returns Absolute path to the music storage directory
  */
-export function getStoragePath(): string {
+export function getStorageDir(): string {
   return path.join(app.getPath("userData"), "music_storage");
 }
 
@@ -24,8 +24,58 @@ export function getStoragePath(): string {
  * @param hash Unique identifier used as directory name for organizing files
  * @returns Absolute path to the hash-based music directory
  */
-export function getMusicPath(hash: string): string {
-  return path.join(getStoragePath(), hash);
+export function getMusicDir(hash: string): string {
+  return path.join(getStorageDir(), hash);
+}
+
+/**
+ * Retrieves the full path to the thumbnail file for a given hash.
+ * Searches the hash-based directory for any file starting with "thumbnail"
+ * and returns the complete file path.
+ *
+ * @param hash Unique identifier used as directory name where music files are stored
+ * @returns Promise<string> Full path to the thumbnail file
+ * @throws Error if no thumbnail file is found in the hash directory
+ */
+export async function getThumbnailPath(hash: string): Promise<string> {
+  // Get the directory containing files for this hash
+  const musicDir = getMusicDir(hash);
+  const files = await fs.promises.readdir(musicDir);
+
+  // Find the thumbnail file (may have different extensions)
+  const file = files.find((f) => f.startsWith("thumbnail"));
+
+  if (!file) {
+    throw new Error("No thumbnail file found");
+  }
+
+  // Return the complete path to the thumbnail file
+  return path.join(musicDir, file);
+}
+
+/**
+ * Retrieves the full path to the audio file for a given hash.
+ * Searches the hash-based directory for any file starting with "audio"
+ * and returns the complete file path.
+ *
+ * @param hash Unique identifier used as directory name where music files are stored
+ * @returns Promise<string> Full path to the audio file
+ * @throws Error if no audio file is found in the hash directory
+ */
+export async function getAudioPath(hash: string): Promise<string> {
+  // Get the directory containing files for this hash
+  const musicDir = getMusicDir(hash);
+  const files = await fs.promises.readdir(musicDir);
+
+  // Find the audio file (may have different extensions like .mp3, .webm, etc.)
+  const file = files.find((f) => f.startsWith("audio"));
+
+  if (!file) {
+    throw new Error("No audio file found");
+  }
+
+  // Return the complete path to the audio file
+  return path.join(musicDir, file);
 }
 
 /**
@@ -48,7 +98,7 @@ export async function downloadThumbnail(url: string, hash: string): Promise<void
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
   // Construct hash-based directory path in storage and create if necessary
-  const destDir = getMusicPath(hash);
+  const destDir = getMusicDir(hash);
   await fs.promises.mkdir(destDir, { recursive: true });
 
   // Extract file extension from URL and construct output path
@@ -87,7 +137,7 @@ export async function downloadAudio(url: string, hash: string): Promise<void> {
   const ytDlp = new YtDlp();
 
   // Construct hash-based directory path in storage and create if necessary
-  const destDir = getMusicPath(hash);
+  const destDir = getMusicDir(hash);
   await fs.promises.mkdir(destDir, { recursive: true });
 
   return new Promise<void>((resolve, reject) => {
@@ -132,18 +182,8 @@ interface AudioResult {
  * @throws Error if no audio file is found in the hash directory or ffprobe fails to analyze the file
  */
 export async function getAudioStats(hash: string): Promise<AudioResult> {
-  // Construct hash-based directory path and list files
-  const musicDir = getMusicPath(hash);
-  const files = await fs.promises.readdir(musicDir);
-  const file = files.find((f) => f.startsWith("audio"));
-
-  // Validate that audio file exists in hash directory
-  if (!file) {
-    throw new Error("No audio file found");
-  }
-
   // Construct full path to audio file and get file stats
-  const audioPath = path.join(musicDir, file);
+  const audioPath = await getAudioPath(hash);
   const stats = await fs.promises.stat(audioPath);
 
   // Extract duration using ffprobe
