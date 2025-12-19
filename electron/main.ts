@@ -1,9 +1,10 @@
 import { app, BrowserWindow } from "electron";
-import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const require = createRequire(import.meta.url);
+import { databaseManager } from "./db";
+import { initializeIpcMainHandlers } from "./handler";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // The built directory structure
@@ -52,9 +53,10 @@ function createWindow() {
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on("window-all-closed", () => {
+app.on("window-all-closed", async () => {
   if (process.platform !== "darwin") {
     app.quit();
+    await databaseManager.close();
     win = null;
   }
 });
@@ -67,4 +69,8 @@ app.on("activate", () => {
   }
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async () => {
+  await databaseManager.initialize();
+  initializeIpcMainHandlers();
+  createWindow();
+});
