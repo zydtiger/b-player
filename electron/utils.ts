@@ -3,9 +3,30 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { ReadableStream } from "node:stream/web";
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 
+import { app } from "electron";
 import { YtDlp } from "ytdlp-nodejs";
-import ffprobe from "@ffprobe-installer/ffprobe";
+
+const require = createRequire(import.meta.url);
+const ffprobe = require("@ffprobe-installer/ffprobe");
+
+/**
+ * Gets the base storage path for music files in the app's userData directory
+ * @returns Absolute path to the music storage directory
+ */
+export function getStoragePath(): string {
+  return path.join(app.getPath("userData"), "music_storage");
+}
+
+/**
+ * Gets the full path to a music directory for a specific hash
+ * @param hash Unique identifier used as directory name for organizing files
+ * @returns Absolute path to the hash-based music directory
+ */
+export function getMusicPath(hash: string): string {
+  return path.join(getStoragePath(), hash);
+}
 
 /**
  * Utility functions for handling media downloads and analysis
@@ -13,19 +34,21 @@ import ffprobe from "@ffprobe-installer/ffprobe";
  */
 
 /**
- * Downloads a thumbnail image from a given URL to a destination directory.
- * The file is saved as "thumbnail" with the extension derived from the URL.
+ * Downloads a thumbnail image from a given URL to a hash-based directory.
+ * The file is saved as "thumbnail" with the extension derived from the URL
+ * in a directory named after the provided hash for organized storage.
  *
  * @param url The URL of the thumbnail image to download.
- * @param destDir The directory where the thumbnail should be saved.
+ * @param hash Unique identifier used as directory name for organizing files.
  * @throws Error if the HTTP request fails or the response body is empty.
  */
-export async function downloadThumbnail(url: string, destDir: string): Promise<void> {
+export async function downloadThumbnail(url: string, hash: string): Promise<void> {
   // Fetch the thumbnail image from the provided URL
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-  // Ensure destination directory exists, create if necessary
+  // Construct hash-based directory path in storage and create if necessary
+  const destDir = getMusicPath(hash);
   await fs.promises.mkdir(destDir, { recursive: true });
 
   // Extract file extension from URL and construct output path
@@ -51,22 +74,24 @@ export async function downloadThumbnail(url: string, destDir: string): Promise<v
 }
 
 /**
- * Downloads audio from a video URL using yt-dlp.
- * Extracts the best quality audio track and saves it as 'audio' with original extension.
+ * Downloads audio from a video URL using yt-dlp to a hash-based directory.
+ * Extracts the best quality audio track and saves it as 'audio' with original extension
+ * in a directory named after the provided hash for organized storage.
  *
  * @param url The video/audio URL to download from (YouTube, etc.).
- * @param destDir The directory where the audio file should be saved.
+ * @param hash Unique identifier used as directory name for organizing files.
  * @throws Error if the download process fails or yt-dlp encounters an error.
  */
-export async function downloadAudio(url: string, destDir: string): Promise<void> {
+export async function downloadAudio(url: string, hash: string): Promise<void> {
   // Initialize yt-dlp instance for audio downloading
   const ytDlp = new YtDlp();
 
-  // Ensure destination directory exists, create if necessary
+  // Construct hash-based directory path in storage and create if necessary
+  const destDir = getMusicPath(hash);
   await fs.promises.mkdir(destDir, { recursive: true });
 
   return new Promise<void>((resolve, reject) => {
-    // Start download process with best audio quality
+    // Start download process with best audio quality to hash-based directory
     const process = ytDlp.download(url, {
       format: "bestaudio",
       output: path.join(destDir, "audio.%(ext)s"),
@@ -99,19 +124,20 @@ interface AudioResult {
 }
 
 /**
- * Retrieves metadata for an audio file including duration and file size.
- * Uses ffprobe to extract audio duration from the file.
+ * Retrieves metadata for an audio file including duration and file size from a hash-based directory.
+ * Uses ffprobe to extract audio duration from the file located in the hash directory.
  *
- * @param musicDir Directory containing the audio file (expects file starting with 'audio')
+ * @param hash Unique identifier used as directory name where audio files are stored.
  * @returns Promise<AudioResult> Object containing duration (seconds) and file size (bytes)
- * @throws Error if no audio file is found or ffprobe fails to analyze the file
+ * @throws Error if no audio file is found in the hash directory or ffprobe fails to analyze the file
  */
-export async function getAudioStats(musicDir: string): Promise<AudioResult> {
-  // List all files in the directory and find audio file
+export async function getAudioStats(hash: string): Promise<AudioResult> {
+  // Construct hash-based directory path and list files
+  const musicDir = getMusicPath(hash);
   const files = await fs.promises.readdir(musicDir);
   const file = files.find((f) => f.startsWith("audio"));
 
-  // Validate that audio file exists
+  // Validate that audio file exists in hash directory
   if (!file) {
     throw new Error("No audio file found");
   }
@@ -122,7 +148,7 @@ export async function getAudioStats(musicDir: string): Promise<AudioResult> {
 
   // Extract duration using ffprobe
   const duration = await new Promise<number>((resolve, reject) => {
-    // Spawn ffprobe process to get audio duration
+    // Spawn ffprobe process to get audio duration from hash-based file
     const child = spawn(ffprobe.path, [
       "-v",
       "error", // Suppress verbose output
@@ -164,7 +190,7 @@ export async function getAudioStats(musicDir: string): Promise<AudioResult> {
     });
   });
 
-  // Return combined audio metadata
+  // Return combined audio metadata from hash-based storage
   return {
     duration: duration,
     fileSize: stats.size,
