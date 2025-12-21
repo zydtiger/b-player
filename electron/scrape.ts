@@ -33,6 +33,9 @@ export async function importMusic(url: string): Promise<Omit<MusicPiece, keyof B
     // Create hidden browser window for scraping
     const scraper = new BrowserWindow({ show: false });
 
+    // Mute audio to prevent any sound during scraping
+    scraper.webContents.setAudioMuted(true);
+
     // Load target URL
     scraper.loadURL(url.toString());
 
