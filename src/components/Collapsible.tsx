@@ -85,12 +85,12 @@ export const Collapsible: React.FC<CollapsibleProps> = ({
       {/* Header with title and arrow */}
       <button
         type="button"
-        className="collapsible-header group w-full flex items-center justify-between p-4 text-left transition-colors duration-150 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg"
+        className="collapsible-header group w-full flex items-center justify-between py-2 px-4 text-left text-base font-medium bg-neutral-900 border border-transparent rounded-lg cursor-pointer transition-colors duration-250 hover:border-blue-500 dark:hover:border-indigo-500"
         onClick={toggleExpanded}
         aria-expanded={expanded}
         aria-controls="collapsible-content"
       >
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">{title}</h3>
+        <h3 className="text-lg font-medium text-white dark:text-gray-100">{title}</h3>
 
         {/* Arrow indicator */}
         <div
