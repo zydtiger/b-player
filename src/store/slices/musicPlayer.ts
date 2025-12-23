@@ -1,12 +1,14 @@
 import { PayloadAction, createSlice } from "@reduxjs/toolkit";
 
+import { MusicPiece } from "@@/shared/model";
+
 export interface MusicPlayerState {
-  currentMusicHash?: string;
+  currentMusic?: MusicPiece;
   isPlaying: boolean;
 }
 
 const initialState: MusicPlayerState = {
-  currentMusicHash: undefined,
+  currentMusic: undefined,
   isPlaying: false,
 };
 
@@ -14,8 +16,8 @@ const musicPlayerSlice = createSlice({
   name: "musicPlayer",
   initialState,
   reducers: {
-    setCurrentMusicHash(state, action: PayloadAction<string>) {
-      state.currentMusicHash = action.payload;
+    setCurrentMusic(state, action: PayloadAction<MusicPiece>) {
+      state.currentMusic = action.payload;
     },
     setIsPlaying(state, action: PayloadAction<boolean>) {
       state.isPlaying = action.payload;
@@ -23,6 +25,6 @@ const musicPlayerSlice = createSlice({
   },
 });
 
-export const { setCurrentMusicHash, setIsPlaying } = musicPlayerSlice.actions;
+export const { setCurrentMusic, setIsPlaying } = musicPlayerSlice.actions;
 
 export default musicPlayerSlice.reducer;
