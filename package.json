@@ -17,9 +17,11 @@
   },
   "dependencies": {
     "@ffprobe-installer/ffprobe": "^2.1.2",
+    "@reduxjs/toolkit": "^2.11.2",
     "mime-types": "^3.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-redux": "^9.2.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "ytdlp-nodejs": "^2.3.5",
