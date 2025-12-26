@@ -1,5 +1,7 @@
 onlyBuiltDependencies:
   - '@ffprobe-installer/darwin-arm64'
+  - '@ffprobe-installer/linux-arm64'
   - electron
   - esbuild
   - sqlite3
+  - ytdlp-nodejs
