@@ -81,7 +81,7 @@ export const Collapsible: React.FC<CollapsibleProps> = ({
   }, [expanded, height]);
 
   return (
-    <div className={`collapsible ${className}`}>
+    <div className={`collapsible max-w-screen box-border ${className}`}>
       {/* Header with title and arrow */}
       <button
         type="button"
