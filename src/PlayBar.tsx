@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
+import { setIsPlaying } from "./store/slices/musicPlayer";
 
 const PlayBar: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { currentMusic } = useAppSelector((state) => state.musicPlayer);
+  const { currentMusic, isPlaying } = useAppSelector((state) => state.musicPlayer);
   const audioRef = useRef<HTMLAudioElement>(null);
 
-  const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -19,7 +19,7 @@ const PlayBar: React.FC = () => {
     if (isPlaying && audioElem.paused) {
       audioRef.current.play().catch((e) => {
         console.error("Error playing audio:", e);
-        setIsPlaying(false);
+        dispatch(setIsPlaying(false));
       });
     } else {
       audioRef.current.pause();
@@ -48,7 +48,7 @@ const PlayBar: React.FC = () => {
   };
 
   const handleTogglePlay = () => {
-    setIsPlaying(!isPlaying);
+    dispatch(setIsPlaying(!isPlaying));
   };
 
   const handlePlayNext = () => {
