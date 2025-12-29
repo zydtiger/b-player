@@ -91,7 +91,7 @@ const PlayBar: React.FC = () => {
 
       {/* Left: Music Info */}
       <div className="flex items-center w-1/4 min-w-50">
-        <div className="w-12 h-12 rounded overflow-hidden mr-3 bg-gray-200 dark:bg-gray-700 flex-shrink-0">
+        <div className="w-12 h-12 rounded overflow-hidden mr-3 bg-gray-200 dark:bg-gray-700 shrink-0">
           <img
             src={`thumbnail://${currentMusic.hash}`}
             alt={currentMusic.name}
