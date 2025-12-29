@@ -85,14 +85,53 @@ export function registerMediaHandlers(): void {
 
       // Get file stats for content length
       const fileStats = await fs.promises.stat(audioPath);
+      const fileSize = fileStats.size;
 
-      // Create file stream and return response
+      // 1. Check for the Range header (e.g., "bytes=0-1023")
+      const range = request.headers.get("range");
+
+      if (range) {
+        // Parse the range header
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+        // Validate range to prevent errors
+        if (start >= fileSize || end >= fileSize) {
+          return new Response("Requested Range Not Satisfiable", {
+            status: 416,
+            headers: { "Content-Range": `bytes */${fileSize}` },
+          });
+        }
+
+        const chunkSize = end - start + 1;
+
+        // Create a stream for the specific chunk
+        const fileStream = fs.createReadStream(audioPath, { start, end });
+        const webStream = Readable.toWeb(fileStream);
+
+        return new Response(webStream as unknown as BodyInit, {
+          status: 206,
+          statusText: "Partial Content",
+          headers: {
+            "Content-Type": mime.lookup(audioPath) || "audio/mp4",
+            "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+            "Accept-Ranges": "bytes",
+            "Content-Length": chunkSize.toString(),
+            "Cache-Control": "public, max-age=3600",
+          },
+        });
+      }
+
+      // 2. Default: Return full file (Status 200)
       const fileStream = fs.createReadStream(audioPath);
       const webStream = Readable.toWeb(fileStream);
+
       return new Response(webStream as unknown as BodyInit, {
+        status: 200,
         headers: {
           "Content-Type": mime.lookup(audioPath) || "audio/mp4",
-          "Content-Length": fileStats.size.toString(),
+          "Content-Length": fileSize.toString(),
           "Accept-Ranges": "bytes",
           "Cache-Control": "public, max-age=3600",
         },
