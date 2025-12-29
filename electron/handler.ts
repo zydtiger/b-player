@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
-import { databaseManager, MusicService } from "./db";
-import { MusicPiece } from "../shared/model";
+import { databaseManager, MusicService, PlaylistService } from "./db";
+import { MusicPiece, Playlist, PlaylistWithMusic } from "../shared/model";
 
 /**
  * Initializes IPC main handlers for communication with the renderer process.
@@ -22,4 +22,42 @@ export function initializeIpcMainHandlers(): void {
 
     return musicPieces;
   });
+
+  /**
+   * Handler for retrieving all playlists from the database.
+   *
+   * @returns Promise<Playlist[]> Array of all playlists in the database
+   * @throws Error if database is not initialized or query fails
+   */
+  ipcMain.handle("getAllPlaylists", async (): Promise<Playlist[]> => {
+    // Create playlist service instance with database connection
+    const playlistService = new PlaylistService(databaseManager.getDatabase());
+
+    // Retrieve all playlists from database
+    const playlists = await playlistService.getAllPlaylists();
+
+    return playlists;
+  });
+
+  /**
+   * Handler for retrieving a playlist with its associated music pieces.
+   *
+   * @param playlistId The ID of the playlist to retrieve
+   * @returns Promise<PlaylistWithMusic> The playlist with all music pieces
+   * @throws Error if database is not initialized or playlist not found
+   */
+  ipcMain.handle(
+    "getPlaylistWithMusic",
+    async (_event, playlistId: number): Promise<PlaylistWithMusic> => {
+      // Create playlist service instance with database connection
+      const playlistService = new PlaylistService(
+        databaseManager.getDatabase(),
+      );
+
+      // Retrieve playlist with music pieces from database
+      const playlist = await playlistService.getPlaylistWithMusic(playlistId);
+
+      return playlist;
+    },
+  );
 }
