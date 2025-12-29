@@ -77,7 +77,22 @@ const PlayBar: React.FC = () => {
   }
 
   return (
-    <div className="fixed bottom-0 left-0 w-full h-20 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-40">
+    <div
+      className="fixed bottom-0 left-0 w-full h-20 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-indigo-500"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === " ") {
+          e.preventDefault();
+          handleTogglePlay();
+        } else if (e.key === "ArrowUp") {
+          e.preventDefault();
+          setVolume((prev) => Math.min(1, prev + 0.1));
+        } else if (e.key === "ArrowDown") {
+          e.preventDefault();
+          setVolume((prev) => Math.max(0, prev - 0.1));
+        }
+      }}
+    >
       <audio
         ref={audioRef}
         src={`audio://${currentMusic.hash}`}
