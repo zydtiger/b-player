@@ -301,7 +301,7 @@ export async function importPlaylist(
           const musicData = playlistResult.musicPieces[i];
 
           // Update progress for each music item
-          const currentProgress = 5 + (i * progressPerMusic);
+          const currentProgress = 5 + i * progressPerMusic;
           onProgress?.({
             stage: "scraping",
             progress: Math.min(currentProgress, 100),
@@ -325,11 +325,11 @@ export async function importPlaylist(
             const musicOnProgress = (musicProgress: DownloadProgress) => {
               // Map individual music progress (0-100) to this music's slot in overall progress
               const slotProgress = (musicProgress.progress / 100) * progressPerMusic;
-              const overallProgress = 5 + (i * progressPerMusic) + slotProgress;
+              const overallProgress = 5 + i * progressPerMusic + slotProgress;
               onProgress?.({
                 stage: "audio",
                 progress: Math.min(overallProgress, 100),
-                message: musicProgress.message || `Downloading audio ${i + 1}/${totalMusic}`,
+                message: `Downloading audio ${i + 1}/${totalMusic}: ${Math.round(musicProgress.progress)}%`,
               });
             };
 
