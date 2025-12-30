@@ -68,12 +68,12 @@ const ListItem: React.FC<ListItemProps> = ({ music, onClick, active, onShowOptio
         <img
           src={`thumbnail://${music.hash}`}
           alt={music.name}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
           loading="lazy"
         />
 
         {/* Play button overlay on hover */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black bg-opacity-30">
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <div className="w-8 h-8 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
             <svg
               width="16"
@@ -113,7 +113,7 @@ const ListItem: React.FC<ListItemProps> = ({ music, onClick, active, onShowOptio
       </div>
 
       {/* More options button */}
-      <div className="ml-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+      <div className="ml-2 shrink-0">
         <button
           className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
           onClick={(e) => onShowOptions(music, e)}
@@ -159,10 +159,7 @@ const ListView: React.FC<ListViewProps> = ({
   /**
    * Handle showing music options menu
    */
-  const handleShowOptions = (
-    music: MusicPiece,
-    event: React.MouseEvent<HTMLButtonElement>,
-  ) => {
+  const handleShowOptions = (music: MusicPiece, event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
     setOptionsMusic(music);
     setOptionsPosition({ x: event.clientX, y: event.clientY });
@@ -176,16 +173,18 @@ const ListView: React.FC<ListViewProps> = ({
   };
 
   return (
-    <div className={`divide-y divide-gray-200 dark:divide-gray-700 ${className}`}>
-      {musicPieces.map((music) => (
-        <ListItem
-          key={music.hash}
-          music={music}
-          onClick={onMusicClick}
-          active={selectedHash === music.hash}
-          onShowOptions={handleShowOptions}
-        />
-      ))}
+    <>
+      <div className={`divide-y divide-gray-200 dark:divide-gray-700 ${className}`}>
+        {musicPieces.map((music) => (
+          <ListItem
+            key={music.hash}
+            music={music}
+            onClick={onMusicClick}
+            active={selectedHash === music.hash}
+            onShowOptions={handleShowOptions}
+          />
+        ))}
+      </div>
       {/* Music options menu */}
       {optionsMusic && (
         <MusicOptions
@@ -194,7 +193,7 @@ const ListView: React.FC<ListViewProps> = ({
           onClose={handleCloseOptions}
         />
       )}
-    </div>
+    </>
   );
 };
 
