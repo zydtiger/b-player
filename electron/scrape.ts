@@ -247,8 +247,6 @@ export async function importPlaylist(url: string): Promise<Playlist> {
           15000, // 15 second timeout for playlist pages
         );
 
-        console.log(playlistResult);
-
         // Initialize services
         const playlistService = new PlaylistService(databaseManager.getDatabase());
         const musicService = new MusicService(databaseManager.getDatabase());
