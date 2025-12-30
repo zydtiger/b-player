@@ -22,7 +22,7 @@ const TopBar: React.FC<TopBarProps> = ({ isSideBarCollapsed, onToggleSidebar }) 
   const handleMusicImport = async (url: string) => {
     try {
       dispatch(setLoading({ isLoading: true, message: "Importing music..." }));
-      const musicPiece = await window.ipcRenderer.invoke("importMusic", url) as MusicPiece;
+      const musicPiece = (await window.ipcRenderer.invoke("importMusic", url)) as MusicPiece;
       console.log("Music imported successfully:", musicPiece);
       setIsMusicImportOpen(false);
       // Reload the page to refresh the music list
@@ -38,14 +38,16 @@ const TopBar: React.FC<TopBarProps> = ({ isSideBarCollapsed, onToggleSidebar }) 
   const handlePlaylistImport = async (url: string) => {
     try {
       dispatch(setLoading({ isLoading: true, message: "Importing playlist..." }));
-      const playlist = await window.ipcRenderer.invoke("importPlaylist", url) as Playlist;
+      const playlist = (await window.ipcRenderer.invoke("importPlaylist", url)) as Playlist;
       console.log("Playlist imported successfully:", playlist);
       setIsPlaylistImportOpen(false);
       // Reload the page to refresh the playlist list
       window.location.reload();
     } catch (error) {
       console.error("Failed to import playlist:", error);
-      alert(`Failed to import playlist: ${error instanceof Error ? error.message : "Unknown error"}`);
+      alert(
+        `Failed to import playlist: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     } finally {
       dispatch(setLoading({ isLoading: false }));
     }
