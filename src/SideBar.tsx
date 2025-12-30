@@ -1,5 +1,5 @@
-import React from "react";
-import { Playlist } from "@@/shared/model";
+import React, { useState, useEffect } from "react";
+import { Playlist, PlaylistWithMusic } from "@@/shared/model";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { setActivePlaylist } from "./store/slices/musicPlayer";
 import {
@@ -7,6 +7,7 @@ import {
   RecentlyAddedIcon,
   RecentlyPlayedIcon,
 } from "./components/icons/SystemPlaylistIcons";
+import PlaylistThumbnailGrid from "./components/PlaylistThumbnailGrid";
 
 /**
  * System playlists with SVG icons
@@ -69,8 +70,8 @@ const TabItem: React.FC<TabItemProps> = ({ icon, title, active, collapsed = fals
         }
       }}
     >
-      {/* Icon */}
-      <div className={`shrink-0 ${!collapsed ? "mr-3" : ""}`}>{renderIcon()}</div>
+      {/* Icon - centered when collapsed */}
+      <div className={`shrink-0 ${collapsed ? "mx-auto" : !collapsed ? "mr-3" : ""}`}>{renderIcon()}</div>
 
       {/* Title - hidden when collapsed */}
       {!collapsed && <span className="font-medium truncate grow">{title}</span>}
@@ -84,6 +85,42 @@ const TabItem: React.FC<TabItemProps> = ({ icon, title, active, collapsed = fals
 const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, className = "" }) => {
   const dispatch = useAppDispatch();
   const activePlaylist = useAppSelector((state) => state.musicPlayer.activePlaylist);
+
+  // State for playlist thumbnails (Map of playlistId -> array of thumbnail URLs)
+  const [playlistThumbnails, setPlaylistThumbnails] = useState<Map<number, string[]>>(new Map());
+
+  // Fetch thumbnails for all playlists
+  useEffect(() => {
+    const fetchThumbnails = async () => {
+      const thumbnailMap = new Map<number, string[]>();
+
+      // Fetch playlist music data in parallel
+      const results = await Promise.allSettled(
+        playlists.map((playlist) =>
+          window.ipcRenderer.invoke("getPlaylistWithMusic", playlist.id) as Promise<PlaylistWithMusic>
+        )
+      );
+
+      // Extract thumbnail hashes from results
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled" && result.value.musicPieces.length > 0) {
+          const hashes = result.value.musicPieces
+            .slice(0, 4)
+            .map((item) => `thumbnail://${item.music.hash}`);
+          thumbnailMap.set(playlists[index].id, hashes);
+        } else {
+          // Empty playlist - no thumbnails
+          thumbnailMap.set(playlists[index].id, []);
+        }
+      });
+
+      setPlaylistThumbnails(thumbnailMap);
+    };
+
+    if (playlists.length > 0) {
+      fetchThumbnails();
+    }
+  }, [playlists]);
 
   const handlePlaylistClick = (playlistName: string) => {
     dispatch(setActivePlaylist(playlistName));
@@ -126,7 +163,12 @@ const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, cl
         {playlists.map((playlist) => (
           <TabItem
             key={playlist.id}
-            icon={playlist.isPinned ? "📌" : "🎵"}
+            icon={
+              <PlaylistThumbnailGrid
+                thumbnails={playlistThumbnails.get(playlist.id) ?? []}
+                collapsed={collapsed}
+              />
+            }
             title={playlist.name}
             active={activePlaylist === playlist.name}
             collapsed={collapsed}
