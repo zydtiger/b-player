@@ -1,8 +1,9 @@
-import { ipcMain, shell } from "electron";
+import { ipcMain, shell, IpcMainInvokeEvent } from "electron";
 import { databaseManager, MusicService, PlaylistService } from "./db";
 import { getMusicDir } from "./utils";
 import { importMusic, importPlaylist } from "./scrape";
 import { MusicPiece, Playlist, PlaylistWithMusic } from "../shared/model";
+import { DownloadProgress } from "./utils";
 
 /**
  * Initializes IPC main handlers for communication with the renderer process.
@@ -87,13 +88,19 @@ export function initializeIpcMainHandlers(): void {
   /**
    * Handler for importing music from a URL.
    *
+   * @param event The IPC event object for sending progress updates
    * @param url The URL of the music page to import from
    * @returns Promise<MusicPiece> The created music piece with all fields
    * @throws Error if import fails or database operation fails
    */
-  ipcMain.handle("importMusic", async (_event, url: string): Promise<MusicPiece> => {
+  ipcMain.handle("importMusic", async (event: IpcMainInvokeEvent, url: string): Promise<MusicPiece> => {
+    // Progress callback to send updates to renderer
+    const onProgress = (progress: DownloadProgress) => {
+      event.sender.send("import-progress", progress);
+    };
+
     // Import music by scraping, downloading assets, and creating database entry
-    const musicPiece = await importMusic(url);
+    const musicPiece = await importMusic(url, onProgress);
 
     return musicPiece;
   });

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { BrowserWindow } from "electron";
 
-import { downloadAudio, downloadThumbnail, getAudioStats } from "./utils";
+import { downloadAudio, downloadThumbnail, getAudioStats, DownloadProgress } from "./utils";
 import { databaseManager, MusicService, PlaylistService } from "./db";
 import { MusicPiece, Playlist } from "../shared/model";
 
@@ -36,13 +36,17 @@ interface PlaylistResult {
  * Imports music from URL by scraping webpage metadata and downloading audio.
  *
  * @param url The URL of the music page to scrape
+ * @param onProgress Optional callback for import progress updates
  * @returns Promise<MusicPiece> The created music piece with all database fields
  * @throws Error if scraping fails, elements not found, downloads fail, or database operation fails
  */
-export async function importMusic(url: string): Promise<MusicPiece> {
+export async function importMusic(
+  url: string,
+  onProgress?: (progress: DownloadProgress) => void,
+): Promise<MusicPiece> {
   return new Promise((resolve, reject) => {
     // Create hidden browser window for scraping
-    const scraper = new BrowserWindow({ show: false });
+    const scraper = new BrowserWindow({ show: true });
 
     // Mute audio to prevent any sound during scraping
     scraper.webContents.setAudioMuted(true);
@@ -53,6 +57,8 @@ export async function importMusic(url: string): Promise<MusicPiece> {
     // Wait for DOM to load before scraping
     scraper.webContents.on("dom-ready", async () => {
       try {
+        onProgress?.({ stage: "scraping", progress: 0, message: "Loading page..." });
+
         // Extract music metadata waiting for required elements
         const musicPartialResult = await waitForLogic<Omit<MusicPieceResult, "srcLink">>(
           scraper,
@@ -61,24 +67,39 @@ export async function importMusic(url: string): Promise<MusicPiece> {
             // Select key elements
             const nameElem = document.querySelector("div.video-info-title");
             const imgElem = document.querySelector("img#wxwork-share-pic");
-            const upElem = document.querySelector("a.up-name");
 
-            if (!nameElem || !imgElem || !upElem) return null;
+            if (!nameElem || !imgElem) return null;
 
             const name = nameElem.innerText;
-            const author = upElem.innerText.split(" ")[0];
-
             let imgSrc = imgElem.getAttribute("src");
-            let authorLink = upElem.getAttribute("href");
 
-            // Ensure URLs are absolute
+            // Ensure thumbnail URL is absolute
             if (!imgSrc.startsWith("http")) imgSrc = "https:" + imgSrc;
-            if (!authorLink.startsWith("http")) authorLink = "https:" + authorLink;
 
             // Skip default placeholder thumbnail
             if (imgSrc === "https://i0.hdslb.com/bfs/static/jinkela/long/images/512.png") {
               return null;
             }
+
+            // Try uploader element first, fall back to member/staff element
+            let author;
+            let authorLink;
+
+            const upElem = document.querySelector("a.up-name");
+            if (upElem) {
+              author = upElem.innerText.split(" ")[0];
+              authorLink = upElem.getAttribute("href");
+            } else {
+              // Handle member/staff case
+              const firstMemberElem = document.querySelector("a.staff-name");
+              if (!firstMemberElem) return null;
+
+              author = firstMemberElem.innerText;
+              authorLink = firstMemberElem.getAttribute("href");
+            }
+
+            // Ensure author link URL is absolute
+            if (!authorLink.startsWith("http")) authorLink = "https:" + authorLink;
 
             return {
               name,
@@ -97,8 +118,11 @@ export async function importMusic(url: string): Promise<MusicPiece> {
         const hash = crypto.createHash("sha1").update(musicResult.srcLink, "utf-8").digest("hex");
 
         // Download assets
+        onProgress?.({ stage: "thumbnail", progress: 3, message: "Downloading thumbnail..." });
         await downloadThumbnail(musicResult.imgSrc, hash);
-        await downloadAudio(musicResult.srcLink, hash);
+        await downloadAudio(musicResult.srcLink, hash, onProgress);
+
+        onProgress?.({ stage: "metadata", progress: 96, message: "Saving to database..." });
 
         // Get audio statistics
         const audioStats = await getAudioStats(hash);
@@ -117,6 +141,8 @@ export async function importMusic(url: string): Promise<MusicPiece> {
           fileSize: audioStats.fileSize,
           playCount: 0,
         });
+
+        onProgress?.({ stage: "metadata", progress: 100, message: "Complete!" });
 
         // Clean up browser window
         scraper.close();

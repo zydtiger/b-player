@@ -124,15 +124,35 @@ export async function downloadThumbnail(url: string, hash: string): Promise<void
 }
 
 /**
+ * Progress callback for download operations
+ */
+export interface DownloadProgress {
+  /** Current stage of download */
+  stage: "scraping" | "thumbnail" | "audio" | "metadata";
+  /** Progress percentage (0-100) */
+  progress: number;
+  /** Optional status message */
+  message?: string;
+}
+
+/**
  * Downloads audio from a video URL using yt-dlp to a hash-based directory.
  * Extracts the best quality audio track and saves it as 'audio' with original extension
  * in a directory named after the provided hash for organized storage.
  *
  * @param url The video/audio URL to download from (YouTube, etc.).
  * @param hash Unique identifier used as directory name for organizing files.
+ * @param onProgress Optional callback for download progress updates
  * @throws Error if the download process fails or yt-dlp encounters an error.
  */
-export async function downloadAudio(url: string, hash: string): Promise<void> {
+export async function downloadAudio(
+  url: string,
+  hash: string,
+  onProgress?: (progress: DownloadProgress) => void,
+): Promise<void> {
+  // Notify scraping stage
+  onProgress?.({ stage: "scraping", progress: 5, message: "Preparing download..." });
+
   // Initialize yt-dlp instance for audio downloading
   const ytDlp = new YtDlp();
 
@@ -141,10 +161,54 @@ export async function downloadAudio(url: string, hash: string): Promise<void> {
   await fs.promises.mkdir(destDir, { recursive: true });
 
   return new Promise<void>((resolve, reject) => {
+    let lastProgress = 0;
+
+    onProgress?.({ stage: "audio", progress: 10, message: "Starting audio download..." });
+
     // Start download process with best audio quality to hash-based directory
     const process = ytDlp.download(url, {
       format: "bestaudio",
       output: path.join(destDir, "audio.%(ext)s"),
+    });
+
+    // Listen to stdout for yt-dlp progress output
+    process.stdout?.on("data", (data) => {
+      const output = data.toString();
+
+      // Parse bright- JSON progress output from yt-dlp
+      // Format: bright-{"status":"downloading","downloaded":"1024","total":"5791404",...}
+      const brightMatch = output.match(/bright-({.*})/);
+      if (brightMatch) {
+        try {
+          const progressData = JSON.parse(brightMatch[1]);
+          if (
+            progressData.status === "downloading" &&
+            progressData.downloaded &&
+            progressData.total
+          ) {
+            const downloaded = parseInt(progressData.downloaded, 10);
+            const total = parseInt(progressData.total, 10);
+
+            if (!isNaN(downloaded) && !isNaN(total) && total > 0) {
+              // Calculate download percentage (0-100)
+              const downloadPercent = (downloaded / total) * 100;
+              // Map to 10-95% range (10% start, 95% end = 85% span)
+              const mappedProgress = 10 + downloadPercent * 0.85;
+
+              if (mappedProgress > lastProgress + 1) {
+                lastProgress = mappedProgress;
+                onProgress?.({
+                  stage: "audio",
+                  progress: Math.min(mappedProgress, 95),
+                  message: `Downloading audio... ${Math.floor(downloadPercent)}%`,
+                });
+              }
+            }
+          }
+        } catch {
+          // Ignore JSON parse errors
+        }
+      }
     });
 
     // Handle process completion - code 0 indicates success
