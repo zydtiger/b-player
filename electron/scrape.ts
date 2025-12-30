@@ -296,67 +296,71 @@ export async function importPlaylist(
           totalDuration: 0, // Will be updated as music is added
         });
 
-        // Import each music piece and add to playlist
-        for (let i = 0; i < totalMusic; i++) {
-          const musicData = playlistResult.musicPieces[i];
+        // Process music in batches of 8 for parallel downloading
+        const CONCURRENCY = 8;
+        for (let batchStart = 0; batchStart < totalMusic; batchStart += CONCURRENCY) {
+          const batchEnd = Math.min(batchStart + CONCURRENCY, totalMusic);
+          const batch = playlistResult.musicPieces.slice(batchStart, batchEnd);
 
-          // Update progress for each music item
-          const currentProgress = 5 + i * progressPerMusic;
-          onProgress?.({
-            stage: "scraping",
-            progress: Math.min(currentProgress, 100),
-            message: `Downloading audio ${i + 1}/${totalMusic}`,
-          });
+          // Phase 1: Download all music in this batch in parallel
+          const downloadResults = await Promise.all(
+            batch.map(async (musicData, batchIndex) => {
+              const globalIndex = batchStart + batchIndex;
+              const hash = crypto
+                .createHash("sha1")
+                .update(musicData.srcLink, "utf-8")
+                .digest("hex");
 
-          // Generate hash for this music piece
-          const hash = crypto.createHash("sha1").update(musicData.srcLink, "utf-8").digest("hex");
+              // Check if music already exists
+              const existingMusic = await musicService.getMusicPieceByHash(hash);
+              let musicId: number;
 
-          // Check if music already exists
-          const existingMusic = await musicService.getMusicPieceByHash(hash);
+              if (existingMusic) {
+                // Skip download, use existing music
+                console.log(`Skipping download for existing music: ${musicData.name}`);
+                musicId = existingMusic.id;
+              } else {
+                // Download thumbnail and audio in parallel
+                await Promise.all([
+                  downloadThumbnail(musicData.imgSrc, hash),
+                  downloadAudio(musicData.srcLink, hash), // No onProgress callback for cleaner UI
+                ]);
 
-          let musicId: number;
+                // Get audio statistics after both downloads complete
+                const audioStats = await getAudioStats(hash);
 
-          if (existingMusic) {
-            // Skip download, use existing music
-            console.log(`Skipping download for existing music: ${musicData.name}`);
-            musicId = existingMusic.id;
-          } else {
-            // Progress callback for individual music download
-            const musicOnProgress = (musicProgress: DownloadProgress) => {
-              // Map individual music progress (0-100) to this music's slot in overall progress
-              const slotProgress = (musicProgress.progress / 100) * progressPerMusic;
-              const overallProgress = 5 + i * progressPerMusic + slotProgress;
-              onProgress?.({
-                stage: "audio",
-                progress: Math.min(overallProgress, 100),
-                message: `Downloading audio ${i + 1}/${totalMusic}: ${Math.round(musicProgress.progress)}%`,
-              });
-            };
+                // Create music piece in database
+                const createdMusic = await musicService.createMusicPiece({
+                  name: musicData.name,
+                  hash,
+                  srcLink: musicData.srcLink,
+                  author: musicData.author,
+                  authorLink: musicData.authorLink,
+                  duration: audioStats.duration,
+                  fileSize: audioStats.fileSize,
+                  playCount: 0,
+                });
 
-            // Download thumbnail and audio
-            await downloadThumbnail(musicData.imgSrc, hash);
-            await downloadAudio(musicData.srcLink, hash, musicOnProgress);
+                musicId = createdMusic.id;
+              }
 
-            // Get audio statistics
-            const audioStats = await getAudioStats(hash);
+              // Return result with globalIndex for ordering
+              return { musicId, globalIndex };
+            }),
+          );
 
-            // Create music piece in database
-            const createdMusic = await musicService.createMusicPiece({
-              name: musicData.name,
-              hash,
-              srcLink: musicData.srcLink,
-              author: musicData.author,
-              authorLink: musicData.authorLink,
-              duration: audioStats.duration,
-              fileSize: audioStats.fileSize,
-              playCount: 0,
+          // Phase 2: Insert into playlist sequentially in globalIndex order
+          const sortedResults = downloadResults.sort((a, b) => a.globalIndex - b.globalIndex);
+          for (const { musicId, globalIndex } of sortedResults) {
+            await playlistService.insertMusicToPlaylist(newPlaylist.id, musicId, globalIndex);
+
+            // Report progress using globalIndex (thread-safe, no race conditions)
+            onProgress?.({
+              stage: "audio",
+              progress: Math.floor(5 + (globalIndex + 1) * progressPerMusic),
+              message: `Finished ${globalIndex + 1}/${totalMusic}`,
             });
-
-            musicId = createdMusic.id;
           }
-
-          // Add music to playlist junction table
-          await playlistService.insertMusicToPlaylist(newPlaylist.id, musicId, i);
         }
 
         onProgress?.({ stage: "metadata", progress: 100, message: "Complete!" });
