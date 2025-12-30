@@ -2,7 +2,11 @@ import React from "react";
 import { Playlist } from "@@/shared/model";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { setActivePlaylist } from "./store/slices/musicPlayer";
-import { HomeIcon, RecentlyAddedIcon, RecentlyPlayedIcon } from "./components/icons/SystemPlaylistIcons";
+import {
+  HomeIcon,
+  RecentlyAddedIcon,
+  RecentlyPlayedIcon,
+} from "./components/icons/SystemPlaylistIcons";
 
 /**
  * System playlists with SVG icons
@@ -77,11 +81,7 @@ const TabItem: React.FC<TabItemProps> = ({ icon, title, active, collapsed = fals
 /**
  * Sidebar with playlist navigation
  */
-export const SideBar: React.FC<SideBarProps> = ({
-  playlists = [],
-  collapsed = false,
-  className = "",
-}) => {
+const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, className = "" }) => {
   const dispatch = useAppDispatch();
   const activePlaylist = useAppSelector((state) => state.musicPlayer.activePlaylist);
 
