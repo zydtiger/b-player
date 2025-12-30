@@ -52,8 +52,6 @@ const TopBar: React.FC<TopBarProps> = ({ isSideBarCollapsed, onToggleSidebar }) 
           </button>
         </div>
 
-        <div className="text-xl font-bold text-gray-900 dark:text-gray-100">Music Player</div>
-
         <div className="flex items-center gap-2">
           <button
             onClick={() => setIsMusicImportOpen(true)}
