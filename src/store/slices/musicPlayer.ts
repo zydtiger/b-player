@@ -5,13 +5,13 @@ import { MusicPiece } from "@@/shared/model";
 export interface MusicPlayerState {
   currentMusic?: MusicPiece;
   isPlaying: boolean;
-  activePlaylist?: string;
+  activePlaylist: string;
 }
 
 const initialState: MusicPlayerState = {
   currentMusic: undefined,
   isPlaying: false,
-  activePlaylist: undefined,
+  activePlaylist: "Library",
 };
 
 const musicPlayerSlice = createSlice({
