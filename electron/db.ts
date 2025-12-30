@@ -89,7 +89,7 @@ export class DatabaseManager {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-        name TEXT NOT NULL,
+        name TEXT NOT NULL UNIQUE,
         description TEXT,
         isPinned INTEGER DEFAULT 0,
         songCount INTEGER DEFAULT 0,
