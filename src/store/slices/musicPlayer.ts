@@ -8,6 +8,7 @@ export interface MusicPlayerState {
   activePlaylist: string;
   isLoading: boolean;
   loadingMessage?: string;
+  loadingProgress: number; // 0-100
 }
 
 const initialState: MusicPlayerState = {
@@ -16,6 +17,7 @@ const initialState: MusicPlayerState = {
   activePlaylist: "Library",
   isLoading: false,
   loadingMessage: undefined,
+  loadingProgress: 0,
 };
 
 const musicPlayerSlice = createSlice({
@@ -31,9 +33,12 @@ const musicPlayerSlice = createSlice({
     setActivePlaylist(state, action: PayloadAction<string>) {
       state.activePlaylist = action.payload;
     },
-    setLoading(state, action: PayloadAction<{ isLoading: boolean; message?: string }>) {
+    setLoading(state, action: PayloadAction<{ isLoading: boolean; message?: string; progress?: number }>) {
       state.isLoading = action.payload.isLoading;
       state.loadingMessage = action.payload.message;
+      if (action.payload.progress !== undefined) {
+        state.loadingProgress = action.payload.progress;
+      }
     },
   },
 });
