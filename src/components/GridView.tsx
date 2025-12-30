@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { MusicPiece } from "@@/shared/model";
+import MusicOptions from "./MusicOptions";
 
 interface GridItemProps {
   /** Music piece data to display */
@@ -8,6 +9,8 @@ interface GridItemProps {
   onClick: (music: MusicPiece) => void;
   /** Whether the item is selected/active */
   active?: boolean;
+  /** Handler for showing options menu */
+  onShowOptions: (music: MusicPiece, event: React.MouseEvent<HTMLDivElement>) => void;
 }
 
 interface GridViewProps {
@@ -24,7 +27,7 @@ interface GridViewProps {
 /**
  * Individual grid item displaying music thumbnail and information
  */
-const GridItem: React.FC<GridItemProps> = ({ music, onClick, active }) => {
+const GridItem: React.FC<GridItemProps> = ({ music, onClick, active, onShowOptions }) => {
   const handleClick = () => {
     onClick(music);
   };
@@ -42,6 +45,10 @@ const GridItem: React.FC<GridItemProps> = ({ music, onClick, active }) => {
         active ? "ring-2 ring-blue-500" : ""
       }`}
       onClick={handleClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onShowOptions(music, e);
+      }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -106,6 +113,32 @@ const GridView: React.FC<GridViewProps> = ({
   selectedHash,
   className = "",
 }) => {
+  // State for music options menu
+  const [optionsMusic, setOptionsMusic] = useState<MusicPiece | null>(null);
+  const [optionsPosition, setOptionsPosition] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+
+  /**
+   * Handle showing music options menu
+   */
+  const handleShowOptions = (
+    music: MusicPiece,
+    event: React.MouseEvent<HTMLDivElement>,
+  ) => {
+    event.stopPropagation();
+    setOptionsMusic(music);
+    setOptionsPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  /**
+   * Handle closing music options menu
+   */
+  const handleCloseOptions = () => {
+    setOptionsMusic(null);
+  };
+
   return (
     <div
       className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 p-4 ${className}`}
@@ -116,8 +149,17 @@ const GridView: React.FC<GridViewProps> = ({
           music={music}
           onClick={onMusicClick}
           active={selectedHash === music.hash}
+          onShowOptions={handleShowOptions}
         />
       ))}
+      {/* Music options menu */}
+      {optionsMusic && (
+        <MusicOptions
+          music={optionsMusic}
+          position={optionsPosition}
+          onClose={handleCloseOptions}
+        />
+      )}
     </div>
   );
 };

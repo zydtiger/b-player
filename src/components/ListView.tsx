@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { MusicPiece } from "@@/shared/model";
+import MusicOptions from "./MusicOptions";
 
 interface ListItemProps {
   /** Music piece data to display */
@@ -8,6 +9,8 @@ interface ListItemProps {
   onClick: (music: MusicPiece) => void;
   /** Whether the item is selected/active */
   active?: boolean;
+  /** Handler for showing options menu */
+  onShowOptions: (music: MusicPiece, event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 interface ListViewProps {
@@ -24,7 +27,7 @@ interface ListViewProps {
 /**
  * Individual list item displaying music thumbnail and information
  */
-const ListItem: React.FC<ListItemProps> = ({ music, onClick, active }) => {
+const ListItem: React.FC<ListItemProps> = ({ music, onClick, active, onShowOptions }) => {
   const handleClick = () => {
     onClick(music);
   };
@@ -113,11 +116,7 @@ const ListItem: React.FC<ListItemProps> = ({ music, onClick, active }) => {
       <div className="ml-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         <button
           className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            // Future: Show context menu for more options
-            console.log("More options for:", music.name);
-          }}
+          onClick={(e) => onShowOptions(music, e)}
           aria-label="More options"
         >
           <svg
@@ -150,6 +149,32 @@ const ListView: React.FC<ListViewProps> = ({
   selectedHash,
   className = "",
 }) => {
+  // State for music options menu
+  const [optionsMusic, setOptionsMusic] = useState<MusicPiece | null>(null);
+  const [optionsPosition, setOptionsPosition] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+
+  /**
+   * Handle showing music options menu
+   */
+  const handleShowOptions = (
+    music: MusicPiece,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    event.stopPropagation();
+    setOptionsMusic(music);
+    setOptionsPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  /**
+   * Handle closing music options menu
+   */
+  const handleCloseOptions = () => {
+    setOptionsMusic(null);
+  };
+
   return (
     <div className={`divide-y divide-gray-200 dark:divide-gray-700 ${className}`}>
       {musicPieces.map((music) => (
@@ -158,8 +183,17 @@ const ListView: React.FC<ListViewProps> = ({
           music={music}
           onClick={onMusicClick}
           active={selectedHash === music.hash}
+          onShowOptions={handleShowOptions}
         />
       ))}
+      {/* Music options menu */}
+      {optionsMusic && (
+        <MusicOptions
+          music={optionsMusic}
+          position={optionsPosition}
+          onClose={handleCloseOptions}
+        />
+      )}
     </div>
   );
 };
