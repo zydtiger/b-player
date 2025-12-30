@@ -41,7 +41,7 @@ const TabItem: React.FC<TabItemProps> = ({ icon, title, active, collapsed = fals
 
   return (
     <div
-      className={`relative flex items-center w-full p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+      className={`relative flex items-center w-full p-2 rounded-lg cursor-pointer transition-all duration-200 ${
         active
           ? "bg-blue-500 text-white shadow-lg"
           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -83,7 +83,7 @@ export const SideBar: React.FC<SideBarProps> = ({
   return (
     <div
       className={`bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 h-full flex flex-col transition-all duration-300 ${
-        collapsed ? "w-16" : "w-64"
+        collapsed ? "w-16" : "w-50"
       } ${className}`}
     >
       {/* Header */}
