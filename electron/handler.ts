@@ -109,13 +109,19 @@ export function initializeIpcMainHandlers(): void {
    * Handler for importing a playlist from a URL.
    * Creates playlist, imports all music (skipping existing), and adds to junction table.
    *
+   * @param event The IPC event object for sending progress updates
    * @param url The URL of the playlist page to import from
    * @returns Promise<Playlist> The created playlist with all fields
    * @throws Error if import fails or database operation fails
    */
-  ipcMain.handle("importPlaylist", async (_event, url: string): Promise<Playlist> => {
+  ipcMain.handle("importPlaylist", async (event: IpcMainInvokeEvent, url: string): Promise<Playlist> => {
+    // Progress callback to send updates to renderer
+    const onProgress = (progress: DownloadProgress) => {
+      event.sender.send("import-progress", progress);
+    };
+
     // Import playlist by scraping, downloading assets, and creating database entries
-    const playlist = await importPlaylist(url);
+    const playlist = await importPlaylist(url, onProgress);
 
     return playlist;
   });

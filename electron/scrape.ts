@@ -212,10 +212,14 @@ async function waitForLogic<T>(
  * and adds them to the junction table.
  *
  * @param url The URL of the playlist page to scrape
+ * @param onProgress Optional callback for import progress updates
  * @returns Promise<Playlist> The created playlist with all fields
  * @throws Error if scraping fails or playlist creation fails
  */
-export async function importPlaylist(url: string): Promise<Playlist> {
+export async function importPlaylist(
+  url: string,
+  onProgress?: (progress: DownloadProgress) => void,
+): Promise<Playlist> {
   return new Promise((resolve, reject) => {
     // Create hidden browser window for scraping
     const scraper = new BrowserWindow({ show: false });
@@ -229,6 +233,8 @@ export async function importPlaylist(url: string): Promise<Playlist> {
     // Wait for DOM to load before scraping
     scraper.webContents.on("dom-ready", async () => {
       try {
+        onProgress?.({ stage: "scraping", progress: 0, message: "Loading playlist page..." });
+
         // Extract playlist metadata waiting for required elements
         const playlistResult = await waitForLogic<PlaylistResult>(
           scraper,
@@ -273,6 +279,11 @@ export async function importPlaylist(url: string): Promise<Playlist> {
           15000, // 15 second timeout for playlist pages
         );
 
+        const totalMusic = playlistResult.musicPieces.length;
+        const progressPerMusic = 95 / totalMusic; // 5% for scraping, 95% for downloads
+
+        onProgress?.({ stage: "scraping", progress: 5, message: `Found ${totalMusic} songs` });
+
         // Initialize services
         const playlistService = new PlaylistService(databaseManager.getDatabase());
         const musicService = new MusicService(databaseManager.getDatabase());
@@ -281,13 +292,21 @@ export async function importPlaylist(url: string): Promise<Playlist> {
         const newPlaylist = await playlistService.createPlaylist({
           name: playlistResult.title,
           isPinned: true,
-          songCount: playlistResult.musicPieces.length,
+          songCount: totalMusic,
           totalDuration: 0, // Will be updated as music is added
         });
 
         // Import each music piece and add to playlist
-        for (let i = 0; i < playlistResult.musicPieces.length; i++) {
+        for (let i = 0; i < totalMusic; i++) {
           const musicData = playlistResult.musicPieces[i];
+
+          // Update progress for each music item
+          const currentProgress = 5 + (i * progressPerMusic);
+          onProgress?.({
+            stage: "scraping",
+            progress: Math.min(currentProgress, 100),
+            message: `Downloading audio ${i + 1}/${totalMusic}`,
+          });
 
           // Generate hash for this music piece
           const hash = crypto.createHash("sha1").update(musicData.srcLink, "utf-8").digest("hex");
@@ -302,9 +321,21 @@ export async function importPlaylist(url: string): Promise<Playlist> {
             console.log(`Skipping download for existing music: ${musicData.name}`);
             musicId = existingMusic.id;
           } else {
+            // Progress callback for individual music download
+            const musicOnProgress = (musicProgress: DownloadProgress) => {
+              // Map individual music progress (0-100) to this music's slot in overall progress
+              const slotProgress = (musicProgress.progress / 100) * progressPerMusic;
+              const overallProgress = 5 + (i * progressPerMusic) + slotProgress;
+              onProgress?.({
+                stage: "audio",
+                progress: Math.min(overallProgress, 100),
+                message: musicProgress.message || `Downloading audio ${i + 1}/${totalMusic}`,
+              });
+            };
+
             // Download thumbnail and audio
             await downloadThumbnail(musicData.imgSrc, hash);
-            await downloadAudio(musicData.srcLink, hash);
+            await downloadAudio(musicData.srcLink, hash, musicOnProgress);
 
             // Get audio statistics
             const audioStats = await getAudioStats(hash);
@@ -327,6 +358,8 @@ export async function importPlaylist(url: string): Promise<Playlist> {
           // Add music to playlist junction table
           await playlistService.insertMusicToPlaylist(newPlaylist.id, musicId, i);
         }
+
+        onProgress?.({ stage: "metadata", progress: 100, message: "Complete!" });
 
         // Clean up browser window
         scraper.close();
