@@ -24,11 +24,11 @@ const MusicOptions: React.FC<MusicOptionsProps> = ({ music, position, onClose })
     try {
       // Get the music directory path for this hash
       const musicDir = await window.ipcRenderer.invoke("getMusicDir", music.hash);
-      console.log("Music folder path:", musicDir);
-      // TODO: Use Electron shell.showItemInFolder() to open in file explorer
+      // Open the path in system file explorer
+      await window.ipcRenderer.invoke("openInExplorer", musicDir);
       onClose();
     } catch (error) {
-      console.error("Failed to get music directory:", error);
+      console.error("Failed to open music folder:", error);
     }
   };
 
