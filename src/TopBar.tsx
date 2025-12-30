@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Dialog from "./components/Dialog";
 import { useAppDispatch } from "./store/hooks";
 import { setLoading } from "./store/slices/musicPlayer";
-import { MusicPiece } from "@@/shared/model";
+import { MusicPiece, Playlist } from "@@/shared/model";
 
 interface TopBarProps {
   /** Whether the sidebar is collapsed */
@@ -35,9 +35,20 @@ const TopBar: React.FC<TopBarProps> = ({ isSideBarCollapsed, onToggleSidebar }) 
     }
   };
 
-  const handlePlaylistImport = (url: string) => {
-    // TODO: Implement actual playlist import functionality
-    console.log("Playlist import URL:", url);
+  const handlePlaylistImport = async (url: string) => {
+    try {
+      dispatch(setLoading({ isLoading: true, message: "Importing playlist..." }));
+      const playlist = await window.ipcRenderer.invoke("importPlaylist", url) as Playlist;
+      console.log("Playlist imported successfully:", playlist);
+      setIsPlaylistImportOpen(false);
+      // Reload the page to refresh the playlist list
+      window.location.reload();
+    } catch (error) {
+      console.error("Failed to import playlist:", error);
+      alert(`Failed to import playlist: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      dispatch(setLoading({ isLoading: false }));
+    }
   };
 
   return (

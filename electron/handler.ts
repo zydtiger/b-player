@@ -1,7 +1,7 @@
 import { ipcMain, shell } from "electron";
 import { databaseManager, MusicService, PlaylistService } from "./db";
 import { getMusicDir } from "./utils";
-import { importMusic } from "./scrape";
+import { importMusic, importPlaylist } from "./scrape";
 import { MusicPiece, Playlist, PlaylistWithMusic } from "../shared/model";
 
 /**
@@ -92,15 +92,24 @@ export function initializeIpcMainHandlers(): void {
    * @throws Error if import fails or database operation fails
    */
   ipcMain.handle("importMusic", async (_event, url: string): Promise<MusicPiece> => {
-    // Import music by scraping and downloading assets
-    const musicPartial = await importMusic(url);
-
-    // Create music service instance with database connection
-    const musicService = new MusicService(databaseManager.getDatabase());
-
-    // Save music piece to database and return the complete MusicPiece
-    const musicPiece = await musicService.createMusicPiece(musicPartial);
+    // Import music by scraping, downloading assets, and creating database entry
+    const musicPiece = await importMusic(url);
 
     return musicPiece;
+  });
+
+  /**
+   * Handler for importing a playlist from a URL.
+   * Creates playlist, imports all music (skipping existing), and adds to junction table.
+   *
+   * @param url The URL of the playlist page to import from
+   * @returns Promise<Playlist> The created playlist with all fields
+   * @throws Error if import fails or database operation fails
+   */
+  ipcMain.handle("importPlaylist", async (_event, url: string): Promise<Playlist> => {
+    // Import playlist by scraping, downloading assets, and creating database entries
+    const playlist = await importPlaylist(url);
+
+    return playlist;
   });
 }

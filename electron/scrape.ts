@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import { BrowserWindow } from "electron";
 
 import { downloadAudio, downloadThumbnail, getAudioStats } from "./utils";
-import { MusicPiece, BasicEntity } from "../shared/model";
+import { databaseManager, MusicService, PlaylistService } from "./db";
+import { MusicPiece, Playlist } from "../shared/model";
 
 /**
  * Interface representing the scraped music information from the webpage
@@ -22,13 +23,23 @@ interface MusicPieceResult {
 }
 
 /**
+ * Interface representing scraped playlist information
+ */
+interface PlaylistResult {
+  /** Title of the playlist */
+  title: string;
+  /** Array of music pieces in the playlist */
+  musicPieces: MusicPieceResult[];
+}
+
+/**
  * Imports music from URL by scraping webpage metadata and downloading audio.
  *
  * @param url The URL of the music page to scrape
- * @returns Promise<Omit<MusicPiece, keyof BasicEntity>> Music metadata without database entities
- * @throws Error if scraping fails, elements not found, or downloads fail
+ * @returns Promise<MusicPiece> The created music piece with all database fields
+ * @throws Error if scraping fails, elements not found, downloads fail, or database operation fails
  */
-export async function importMusic(url: string): Promise<Omit<MusicPiece, keyof BasicEntity>> {
+export async function importMusic(url: string): Promise<MusicPiece> {
   return new Promise((resolve, reject) => {
     // Create hidden browser window for scraping
     const scraper = new BrowserWindow({ show: false });
@@ -92,8 +103,11 @@ export async function importMusic(url: string): Promise<Omit<MusicPiece, keyof B
         // Get audio statistics
         const audioStats = await getAudioStats(hash);
 
-        // Create music piece object (excludes database fields)
-        const music: Omit<MusicPiece, keyof BasicEntity> = {
+        // Create music service instance with database connection
+        const musicService = new MusicService(databaseManager.getDatabase());
+
+        // Save music piece to database and return the complete MusicPiece
+        const musicPiece = await musicService.createMusicPiece({
           name: musicResult.name,
           hash,
           srcLink: musicResult.srcLink,
@@ -102,12 +116,12 @@ export async function importMusic(url: string): Promise<Omit<MusicPiece, keyof B
           duration: audioStats.duration,
           fileSize: audioStats.fileSize,
           playCount: 0,
-        };
+        });
 
         // Clean up browser window
         scraper.close();
 
-        resolve(music);
+        resolve(musicPiece);
       } catch (error) {
         console.error("Error executing JavaScript:", error);
 
@@ -163,5 +177,145 @@ async function waitForLogic<T>(
 
     // Start polling
     checkLogic();
+  });
+}
+
+/**
+ * Imports a playlist from URL by scraping playlist metadata and all associated music.
+ * Creates playlist in database, imports music pieces (skipping already downloaded),
+ * and adds them to the junction table.
+ *
+ * @param url The URL of the playlist page to scrape
+ * @returns Promise<Playlist> The created playlist with all fields
+ * @throws Error if scraping fails or playlist creation fails
+ */
+export async function importPlaylist(url: string): Promise<Playlist> {
+  return new Promise((resolve, reject) => {
+    // Create hidden browser window for scraping
+    const scraper = new BrowserWindow({ show: false });
+
+    // Mute audio to prevent any sound during scraping
+    scraper.webContents.setAudioMuted(true);
+
+    // Load target URL
+    scraper.loadURL(url.toString());
+
+    // Wait for DOM to load before scraping
+    scraper.webContents.on("dom-ready", async () => {
+      try {
+        // Extract playlist metadata waiting for required elements
+        const playlistResult = await waitForLogic<PlaylistResult>(
+          scraper,
+          // Self-executing function in browser context
+          `(() => {
+            const result = {
+              title: "",
+              musicPieces: [],
+            };
+
+            const titleElem = document.querySelector("div.favlist-info-detail__title");
+            if (!titleElem) return null;
+            result["title"] = titleElem.innerText.trim().split("\\n")[0];
+
+            const musicElems = document.querySelectorAll("div.items > div.items__item");
+            if (musicElems.length === 0) return null;
+
+            for (const elem of musicElems) {
+              const imgElem = elem.querySelector("div.bili-cover-card__thumbnail > img");
+              const nameElem = elem.querySelector("div.bili-video-card__title > a");
+              const authorElem = elem.querySelector("a.bili-video-card__author");
+              if (!imgElem || !nameElem || !authorElem) return null;
+
+              const imgSrc = "https:" + imgElem.getAttribute("src");
+              const name = nameElem.innerText.trim();
+              const srcLink = nameElem.getAttribute("href");
+
+              const author = authorElem.innerText.trim().split(" ")[0];
+              const authorLink = authorElem.getAttribute("href");
+
+              result["musicPieces"].push({
+                name,
+                imgSrc,
+                srcLink,
+                author,
+                authorLink,
+              });
+            }
+
+            return result;
+          })()`,
+          15000, // 15 second timeout for playlist pages
+        );
+
+        console.log(playlistResult);
+
+        // Initialize services
+        const playlistService = new PlaylistService(databaseManager.getDatabase());
+        const musicService = new MusicService(databaseManager.getDatabase());
+
+        // Create playlist in database
+        const newPlaylist = await playlistService.createPlaylist({
+          name: playlistResult.title,
+          isPinned: true,
+          songCount: playlistResult.musicPieces.length,
+          totalDuration: 0, // Will be updated as music is added
+        });
+
+        // Import each music piece and add to playlist
+        for (let i = 0; i < playlistResult.musicPieces.length; i++) {
+          const musicData = playlistResult.musicPieces[i];
+
+          // Generate hash for this music piece
+          const hash = crypto.createHash("sha1").update(musicData.srcLink, "utf-8").digest("hex");
+
+          // Check if music already exists
+          const existingMusic = await musicService.getMusicPieceByHash(hash);
+
+          let musicId: number;
+
+          if (existingMusic) {
+            // Skip download, use existing music
+            console.log(`Skipping download for existing music: ${musicData.name}`);
+            musicId = existingMusic.id;
+          } else {
+            // Download thumbnail and audio
+            await downloadThumbnail(musicData.imgSrc, hash);
+            await downloadAudio(musicData.srcLink, hash);
+
+            // Get audio statistics
+            const audioStats = await getAudioStats(hash);
+
+            // Create music piece in database
+            const createdMusic = await musicService.createMusicPiece({
+              name: musicData.name,
+              hash,
+              srcLink: musicData.srcLink,
+              author: musicData.author,
+              authorLink: musicData.authorLink,
+              duration: audioStats.duration,
+              fileSize: audioStats.fileSize,
+              playCount: 0,
+            });
+
+            musicId = createdMusic.id;
+          }
+
+          // Add music to playlist junction table
+          await playlistService.insertMusicToPlaylist(newPlaylist.id, musicId, i);
+        }
+
+        // Clean up browser window
+        scraper.close();
+
+        resolve(newPlaylist);
+      } catch (error) {
+        console.error("Error importing playlist:", error);
+
+        // Ensure browser window is closed on error
+        scraper.close();
+
+        reject(error);
+      }
+    });
   });
 }
