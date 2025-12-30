@@ -302,6 +302,12 @@ export async function importPlaylist(
           const batchEnd = Math.min(batchStart + CONCURRENCY, totalMusic);
           const batch = playlistResult.musicPieces.slice(batchStart, batchEnd);
 
+          onProgress?.({
+            stage: "audio",
+            progress: Math.floor(5 + batchStart * progressPerMusic),
+            message: `Downloading audio ${batchStart + 1} to ${batchEnd} / ${totalMusic}`,
+          });
+
           // Phase 1: Download all music in this batch in parallel
           const downloadResults = await Promise.all(
             batch.map(async (musicData, batchIndex) => {
