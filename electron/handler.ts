@@ -1,6 +1,7 @@
 import { ipcMain, shell } from "electron";
 import { databaseManager, MusicService, PlaylistService } from "./db";
 import { getMusicDir } from "./utils";
+import { importMusic } from "./scrape";
 import { MusicPiece, Playlist, PlaylistWithMusic } from "../shared/model";
 
 /**
@@ -81,5 +82,25 @@ export function initializeIpcMainHandlers(): void {
   ipcMain.handle("openInExplorer", async (_event, filePath: string): Promise<void> => {
     // Open the path in the system's default file explorer
     shell.openPath(filePath);
+  });
+
+  /**
+   * Handler for importing music from a URL.
+   *
+   * @param url The URL of the music page to import from
+   * @returns Promise<MusicPiece> The created music piece with all fields
+   * @throws Error if import fails or database operation fails
+   */
+  ipcMain.handle("importMusic", async (_event, url: string): Promise<MusicPiece> => {
+    // Import music by scraping and downloading assets
+    const musicPartial = await importMusic(url);
+
+    // Create music service instance with database connection
+    const musicService = new MusicService(databaseManager.getDatabase());
+
+    // Save music piece to database and return the complete MusicPiece
+    const musicPiece = await musicService.createMusicPiece(musicPartial);
+
+    return musicPiece;
   });
 }

@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 import Dialog from "./components/Dialog";
+import { useAppDispatch } from "./store/hooks";
+import { setLoading } from "./store/slices/musicPlayer";
+import { MusicPiece } from "@@/shared/model";
 
 interface TopBarProps {
   /** Whether the sidebar is collapsed */
@@ -12,12 +15,24 @@ interface TopBarProps {
  * Top bar with sidebar collapse toggle, import buttons, and app title
  */
 const TopBar: React.FC<TopBarProps> = ({ isSideBarCollapsed, onToggleSidebar }) => {
+  const dispatch = useAppDispatch();
   const [isMusicImportOpen, setIsMusicImportOpen] = useState(false);
   const [isPlaylistImportOpen, setIsPlaylistImportOpen] = useState(false);
 
-  const handleMusicImport = (url: string) => {
-    // TODO: Implement actual music import functionality
-    console.log("Music import URL:", url);
+  const handleMusicImport = async (url: string) => {
+    try {
+      dispatch(setLoading({ isLoading: true, message: "Importing music..." }));
+      const musicPiece = await window.ipcRenderer.invoke("importMusic", url) as MusicPiece;
+      console.log("Music imported successfully:", musicPiece);
+      setIsMusicImportOpen(false);
+      // Reload the page to refresh the music list
+      window.location.reload();
+    } catch (error) {
+      console.error("Failed to import music:", error);
+      alert(`Failed to import music: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      dispatch(setLoading({ isLoading: false }));
+    }
   };
 
   const handlePlaylistImport = (url: string) => {
