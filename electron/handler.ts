@@ -80,6 +80,6 @@ export function initializeIpcMainHandlers(): void {
    */
   ipcMain.handle("openInExplorer", async (_event, filePath: string): Promise<void> => {
     // Open the path in the system's default file explorer
-    shell.showItemInFolder(filePath);
+    shell.openPath(filePath);
   });
 }
