@@ -2,7 +2,16 @@ import React from "react";
 import { Playlist } from "@@/shared/model";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { setActivePlaylist } from "./store/slices/musicPlayer";
-import { SYSTEM_PLAYLISTS } from "./types";
+import { HomeIcon, RecentlyAddedIcon, RecentlyPlayedIcon } from "./components/icons/SystemPlaylistIcons";
+
+/**
+ * System playlists with SVG icons
+ */
+const SYSTEM_PLAYLISTS = [
+  { id: "library", name: "Library", icon: <HomeIcon /> },
+  { id: "recently-added", name: "Recently Added", icon: <RecentlyAddedIcon /> },
+  { id: "recently-played", name: "Recently Played", icon: <RecentlyPlayedIcon /> },
+] as const;
 
 interface SideBarProps {
   /** User playlists */
