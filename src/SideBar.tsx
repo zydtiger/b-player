@@ -6,6 +6,7 @@ import {
   HomeIcon,
   RecentlyAddedIcon,
   RecentlyPlayedIcon,
+  PlaylistsIcon,
 } from "./components/icons/SystemPlaylistIcons";
 import PlaylistThumbnailGrid from "./components/PlaylistThumbnailGrid";
 
@@ -16,6 +17,7 @@ const SYSTEM_PLAYLISTS = [
   { id: "library", name: "Library", icon: <HomeIcon /> },
   { id: "recently-added", name: "Recently Added", icon: <RecentlyAddedIcon /> },
   { id: "recently-played", name: "Recently Played", icon: <RecentlyPlayedIcon /> },
+  { id: "playlists", name: "Playlists", icon: <PlaylistsIcon /> },
 ] as const;
 
 interface SideBarProps {
@@ -159,8 +161,8 @@ const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, cl
           </div>
         )}
 
-        {/* User Playlists */}
-        {playlists.map((playlist) => (
+        {/* User Playlists - only show pinned */}
+        {playlists.filter((playlist) => playlist.isPinned).map((playlist) => (
           <TabItem
             key={playlist.id}
             icon={
