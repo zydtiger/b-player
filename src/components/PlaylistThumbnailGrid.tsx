@@ -57,6 +57,7 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
     // Determine effective size based on props (backward compatibility)
     const effectiveSize = sizeProp || "sidebar";
     const isGrid = effectiveSize === "grid";
+    const isList = effectiveSize === "list";
 
     // Size class mappings for each variant
     const sizeClasses: Record<ThumbnailSize, string> = {
@@ -99,7 +100,9 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
         );
       }
       return (
-        <div className={`flex items-center justify-center ${containerSize} rounded-md overflow-hidden relative`}>
+        <div
+          className={`flex items-center justify-center ${containerSize} rounded-md overflow-hidden relative`}
+        >
           <img
             src={src}
             alt=""
@@ -123,6 +126,22 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
               </div>
             </div>
           )}
+          {/* Play button overlay for list size */}
+          {isList && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+              <div className="w-10 h-10 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="text-gray-800"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -130,7 +149,9 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
     // 2 thumbnails - 1x2 grid (side by side)
     if (thumbnails.length === 2) {
       return (
-        <div className={`${containerSize} rounded-md overflow-hidden grid grid-cols-2 grid-rows-1 relative`}>
+        <div
+          className={`${containerSize} rounded-md overflow-hidden grid grid-cols-2 grid-rows-1 relative`}
+        >
           {thumbnails.map((src, index) =>
             failedImages.has(index) ? (
               renderPlaceholder(index)
@@ -161,6 +182,22 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
               </div>
             </div>
           )}
+          {/* Play button overlay for list size */}
+          {isList && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+              <div className="w-10 h-10 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="text-gray-800"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -168,7 +205,9 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
     // 3 thumbnails - 2 in first row, 1 centered in second row
     if (thumbnails.length === 3) {
       return (
-        <div className={`${containerSize} rounded-md overflow-hidden grid grid-cols-2 grid-rows-2 relative`}>
+        <div
+          className={`${containerSize} rounded-md overflow-hidden grid grid-cols-2 grid-rows-2 relative`}
+        >
           {thumbnails.map((src, index) => {
             // Third item spans both columns and centers
             const colSpanClass = index === 2 ? "col-span-2 flex justify-center" : "";
@@ -204,6 +243,22 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
               </div>
             </div>
           )}
+          {/* Play button overlay for list size */}
+          {isList && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+              <div className="w-10 h-10 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="text-gray-800"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -211,7 +266,9 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
     // 4+ thumbnails - full 2x2 grid (show only first 4)
     const displayThumbnails = thumbnails.slice(0, 4);
     return (
-      <div className={`${containerSize} rounded-md overflow-hidden grid grid-cols-2 grid-rows-2 relative`}>
+      <div
+        className={`${containerSize} rounded-md overflow-hidden grid grid-cols-2 grid-rows-2 relative`}
+      >
         {displayThumbnails.map((src, index) =>
           failedImages.has(index) ? (
             renderPlaceholder(index)
@@ -233,6 +290,22 @@ const PlaylistThumbnailGrid: React.FC<PlaylistThumbnailGridProps> = React.memo(
               <svg
                 width="24"
                 height="24"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="text-gray-800"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+        )}
+        {/* Play button overlay for list size */}
+        {isList && (
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            <div className="w-10 h-10 bg-white bg-opacity-90 rounded-full flex items-center justify-center">
+              <svg
+                width="18"
+                height="18"
                 viewBox="0 0 24 24"
                 fill="currentColor"
                 className="text-gray-800"
