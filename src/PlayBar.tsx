@@ -24,7 +24,7 @@ const PlayBar: React.FC = () => {
     } else {
       audioRef.current.pause();
     }
-  }, [isPlaying, dispatch]);
+  }, [currentMusic, isPlaying, dispatch]);
 
   // Handle volume change
   useEffect(() => {
