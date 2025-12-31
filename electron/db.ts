@@ -1,9 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
-import { createRequire } from "node:module";
 
-import { Database as SQLite3DB, Statement as SQLite3Statement } from "sqlite3";
-import { Database, open } from "sqlite";
+import Database from "better-sqlite3";
 
 import { getStorageDir } from "./utils";
 import {
@@ -15,10 +13,12 @@ import {
   PlaylistWithMusic,
 } from "../shared/model";
 
-const require = createRequire(import.meta.url);
-const sqlite3 = require("sqlite3");
+/**
+ * Database row type for playlists (isPinned is stored as number in SQLite)
+ */
+type PlaylistRow = Omit<Playlist, "isPinned"> & { isPinned: number };
 
-let db: Database<SQLite3DB, SQLite3Statement> | null = null;
+let db: Database.Database | null = null;
 
 /**
  * Database Manager for handling music piece database operations
@@ -35,28 +35,25 @@ export class DatabaseManager {
   /**
    * Initialize database connection and create tables
    */
-  async initialize(): Promise<void> {
+  initialize(): void {
     // Ensure storage directory exists
-    await fs.promises.mkdir(this.storageDir, { recursive: true });
+    fs.mkdirSync(this.storageDir, { recursive: true });
 
     // Open database connection
-    db = await open({
-      filename: this.dbPath,
-      driver: sqlite3.Database,
-    });
+    db = new Database(this.dbPath);
 
     // Create tables
-    await this.createTables();
+    this.createTables();
   }
 
   /**
    * Create database tables for music pieces only
    */
-  private async createTables(): Promise<void> {
+  private createTables(): void {
     if (!db) throw new Error("Database not initialized");
 
     // Music pieces table with camelCase field names
-    await db.exec(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS music_pieces (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -74,7 +71,7 @@ export class DatabaseManager {
     `);
 
     // Create trigger for updating timestamps
-    await db.exec(`
+    db.exec(`
       CREATE TRIGGER IF NOT EXISTS update_music_pieces_timestamp
         AFTER UPDATE ON music_pieces
         FOR EACH ROW
@@ -84,7 +81,7 @@ export class DatabaseManager {
     `);
 
     // Playlists table with camelCase field names
-    await db.exec(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS playlists (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -98,7 +95,7 @@ export class DatabaseManager {
     `);
 
     // Create trigger for updating playlists timestamps
-    await db.exec(`
+    db.exec(`
       CREATE TRIGGER IF NOT EXISTS update_playlists_timestamp
         AFTER UPDATE ON playlists
         FOR EACH ROW
@@ -108,7 +105,7 @@ export class DatabaseManager {
     `);
 
     // Junction table for many-to-many relationship between playlists and music pieces
-    await db.exec(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS playlist_music (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         playlistId INTEGER NOT NULL,
@@ -125,7 +122,7 @@ export class DatabaseManager {
   /**
    * Get database instance
    */
-  getDatabase(): Database<SQLite3DB, SQLite3Statement> {
+  getDatabase(): Database.Database {
     if (!db) {
       throw new Error("Database not initialized. Call initialize() first.");
     }
@@ -135,9 +132,9 @@ export class DatabaseManager {
   /**
    * Close database connection
    */
-  async close(): Promise<void> {
+  close(): void {
     if (db) {
-      await db.close();
+      db.close();
       db = null;
     }
   }
@@ -147,9 +144,9 @@ export class DatabaseManager {
  * Music piece CRUD operations
  */
 export class MusicService {
-  private db: Database<SQLite3DB, SQLite3Statement>;
+  private db: Database.Database;
 
-  constructor(database: Database<SQLite3DB, SQLite3Statement>) {
+  constructor(database: Database.Database) {
     this.db = database;
   }
 
@@ -166,35 +163,41 @@ export class MusicService {
       updatedAt: true,
     }).parse(piece);
 
-    const result = await this.db.run(
+    const stmt = this.db.prepare(
       `
       INSERT INTO music_pieces (name, hash, srcLink, author, authorLink, duration, fileSize, playCount)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `,
-      [
-        validatedPiece.name,
-        validatedPiece.hash,
-        validatedPiece.srcLink,
-        validatedPiece.author,
-        validatedPiece.authorLink,
-        validatedPiece.duration,
-        validatedPiece.fileSize,
-        validatedPiece.playCount,
-      ],
     );
 
-    if (!result.lastID) {
+    const result = stmt.run(
+      validatedPiece.name,
+      validatedPiece.hash,
+      validatedPiece.srcLink,
+      validatedPiece.author,
+      validatedPiece.authorLink,
+      validatedPiece.duration,
+      validatedPiece.fileSize,
+      validatedPiece.playCount,
+    );
+
+    const lastId =
+      typeof result.lastInsertRowid === "bigint"
+        ? Number(result.lastInsertRowid)
+        : result.lastInsertRowid;
+    if (!lastId) {
       throw new Error("Failed to create music piece");
     }
 
-    return this.getMusicPieceById(result.lastID);
+    return this.getMusicPieceById(lastId);
   }
 
   /**
    * Get music piece by ID
    */
   async getMusicPieceById(id: number): Promise<MusicPiece> {
-    const row = await this.db.get("SELECT * FROM music_pieces WHERE id = ?", [id]);
+    const stmt = this.db.prepare("SELECT * FROM music_pieces WHERE id = ?");
+    const row = stmt.get(id) as MusicPiece | undefined;
     if (!row) {
       throw new Error(`Music piece with ID ${id} not found`);
     }
@@ -205,7 +208,8 @@ export class MusicService {
    * Get music piece by hash
    */
   async getMusicPieceByHash(hash: string): Promise<MusicPiece | null> {
-    const row = await this.db.get("SELECT * FROM music_pieces WHERE hash = ?", [hash]);
+    const stmt = this.db.prepare("SELECT * FROM music_pieces WHERE hash = ?");
+    const row = stmt.get(hash) as MusicPiece | undefined;
     if (!row) {
       return null;
     }
@@ -216,7 +220,8 @@ export class MusicService {
    * Get all music pieces
    */
   async getAllMusicPieces(): Promise<MusicPiece[]> {
-    const rows = await this.db.all(`SELECT * FROM music_pieces`);
+    const stmt = this.db.prepare("SELECT * FROM music_pieces");
+    const rows = stmt.all() as MusicPiece[];
     return rows;
   }
 }
@@ -225,9 +230,9 @@ export class MusicService {
  * Playlist CRUD operations
  */
 export class PlaylistService {
-  private db: Database<SQLite3DB, SQLite3Statement>;
+  private db: Database.Database;
 
-  constructor(database: Database<SQLite3DB, SQLite3Statement>) {
+  constructor(database: Database.Database) {
     this.db = database;
   }
 
@@ -248,25 +253,30 @@ export class PlaylistService {
       updatedAt: true,
     }).parse(playlist);
 
-    const result = await this.db.run(
+    const stmt = this.db.prepare(
       `
       INSERT INTO playlists (name, description, isPinned, songCount, totalDuration)
       VALUES (?, ?, ?, ?, ?)
     `,
-      [
-        validatedPlaylist.name,
-        validatedPlaylist.description ?? null,
-        validatedPlaylist.isPinned ? 1 : 0,
-        validatedPlaylist.songCount,
-        validatedPlaylist.totalDuration,
-      ],
     );
 
-    if (!result.lastID) {
+    const result = stmt.run(
+      validatedPlaylist.name,
+      validatedPlaylist.description ?? null,
+      validatedPlaylist.isPinned ? 1 : 0,
+      validatedPlaylist.songCount,
+      validatedPlaylist.totalDuration,
+    );
+
+    const lastId =
+      typeof result.lastInsertRowid === "bigint"
+        ? Number(result.lastInsertRowid)
+        : result.lastInsertRowid;
+    if (!lastId) {
       throw new Error("Failed to create playlist");
     }
 
-    return this.getPlaylistById(result.lastID);
+    return this.getPlaylistById(lastId);
   }
 
   /**
@@ -277,14 +287,21 @@ export class PlaylistService {
    * @throws Error if playlist not found
    */
   async getPlaylistById(id: number): Promise<Playlist> {
-    const row = await this.db.get("SELECT * FROM playlists WHERE id = ?", [id]);
+    const stmt = this.db.prepare("SELECT * FROM playlists WHERE id = ?");
+    const row = stmt.get(id) as PlaylistRow | undefined;
     if (!row) {
       throw new Error(`Playlist with ID ${id} not found`);
     }
     // Convert isPinned from integer to boolean
     return {
-      ...row,
+      id: row.id,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt),
+      name: row.name,
+      description: row.description ?? undefined,
       isPinned: Boolean(row.isPinned),
+      songCount: row.songCount,
+      totalDuration: row.totalDuration,
     };
   }
 
@@ -294,12 +311,21 @@ export class PlaylistService {
    * @returns Array of all playlists
    */
   async getAllPlaylists(): Promise<Playlist[]> {
-    const rows = await this.db.all(`SELECT * FROM playlists`);
+    const stmt = this.db.prepare("SELECT * FROM playlists");
+    const rows = stmt.all() as PlaylistRow[];
     // Convert isPinned from integer to boolean for each row
-    return rows.map((row) => ({
-      ...row,
-      isPinned: Boolean(row.isPinned),
-    }));
+    return rows.map(
+      (row): Playlist => ({
+        id: row.id,
+        createdAt: new Date(row.createdAt),
+        updatedAt: new Date(row.updatedAt),
+        name: row.name,
+        description: row.description ?? undefined,
+        isPinned: Boolean(row.isPinned),
+        songCount: row.songCount,
+        totalDuration: row.totalDuration,
+      }),
+    );
   }
 
   /**
@@ -310,15 +336,15 @@ export class PlaylistService {
    * @throws Error if playlist not found
    */
   async getPlaylistWithMusic(id: number): Promise<PlaylistWithMusic> {
-    const playlistRow = await this.db.get("SELECT * FROM playlists WHERE id = ?", [id]);
+    const playlistStmt = this.db.prepare("SELECT * FROM playlists WHERE id = ?");
+    const playlistRow = playlistStmt.get(id) as PlaylistRow | undefined;
 
     if (!playlistRow) {
       throw new Error(`Playlist with ID ${id} not found`);
     }
 
     // Get all music pieces in this playlist
-    const musicRows = await this.db.all(
-      `
+    const musicStmt = this.db.prepare(`
       SELECT
         pm.position,
         pm.addedAt,
@@ -327,14 +353,20 @@ export class PlaylistService {
       INNER JOIN music_pieces mp ON pm.musicId = mp.id
       WHERE pm.playlistId = ?
       ORDER BY pm.position ASC
-    `,
-      [id],
-    );
+    `);
 
-    // Convert isPinned from integer to boolean
-    const playlist = {
-      ...playlistRow,
+    const musicRows = musicStmt.all(id) as (MusicPiece & { position: number; addedAt: string })[];
+
+    // Convert database row to Playlist type
+    const playlist: Playlist = {
+      id: playlistRow.id,
+      createdAt: new Date(playlistRow.createdAt),
+      updatedAt: new Date(playlistRow.updatedAt),
+      name: playlistRow.name,
+      description: playlistRow.description ?? undefined,
       isPinned: Boolean(playlistRow.isPinned),
+      songCount: playlistRow.songCount,
+      totalDuration: playlistRow.totalDuration,
     };
 
     // Map music pieces to the expected format
@@ -378,7 +410,8 @@ export class PlaylistService {
     position?: number,
   ): Promise<PlaylistMusic> {
     // Get music piece to calculate duration
-    const musicPiece = await this.db.get("SELECT * FROM music_pieces WHERE id = ?", [musicId]);
+    const musicStmt = this.db.prepare("SELECT * FROM music_pieces WHERE id = ?");
+    const musicPiece = musicStmt.get(musicId) as { duration: number } | undefined;
 
     if (!musicPiece) {
       throw new Error(`Music piece with ID ${musicId} not found`);
@@ -388,54 +421,61 @@ export class PlaylistService {
     let insertPosition = position;
     if (insertPosition === undefined) {
       // If position not provided, append to the end
-      const maxPositionRow = await this.db.get(
+      const maxPosStmt = this.db.prepare(
         "SELECT MAX(position) as maxPos FROM playlist_music WHERE playlistId = ?",
-        [playlistId],
       );
+      const maxPositionRow = maxPosStmt.get(playlistId) as { maxPos: number | null } | undefined;
       insertPosition = (maxPositionRow?.maxPos ?? -1) + 1;
     } else {
       // Shift existing items to make room for the new item
-      await this.db.run(
+      const shiftStmt = this.db.prepare(
         `
         UPDATE playlist_music
         SET position = position + 1
         WHERE playlistId = ? AND position >= ?
       `,
-        [playlistId, insertPosition],
       );
+      shiftStmt.run(playlistId, insertPosition);
     }
 
     // Insert into junction table
-    const result = await this.db.run(
+    const insertStmt = this.db.prepare(
       `
       INSERT INTO playlist_music (playlistId, musicId, position)
       VALUES (?, ?, ?)
     `,
-      [playlistId, musicId, insertPosition],
     );
 
-    if (!result.lastID) {
+    const result = insertStmt.run(playlistId, musicId, insertPosition);
+
+    const lastId =
+      typeof result.lastInsertRowid === "bigint"
+        ? Number(result.lastInsertRowid)
+        : result.lastInsertRowid;
+    if (!lastId) {
       throw new Error("Failed to add music to playlist");
     }
 
     // Update playlist denormalized fields
-    await this.db.run(
+    const updateStmt = this.db.prepare(
       `
       UPDATE playlists
       SET songCount = songCount + 1,
           totalDuration = totalDuration + ?
       WHERE id = ?
     `,
-      [musicPiece.duration, playlistId],
     );
+    updateStmt.run(musicPiece.duration, playlistId);
 
     // Get and return the junction record
-    const row = await this.db.get("SELECT * FROM playlist_music WHERE id = ?", [result.lastID]);
+    const junctionStmt = this.db.prepare("SELECT * FROM playlist_music WHERE id = ?");
+    const row = junctionStmt.get(lastId) as PlaylistMusic | undefined;
 
-    return {
-      ...row,
-      addedAt: new Date(row.addedAt),
-    };
+    if (!row) {
+      throw new Error("Failed to retrieve created junction record");
+    }
+
+    return row;
   }
 
   /**
@@ -447,56 +487,55 @@ export class PlaylistService {
    */
   async removeMusicFromPlaylist(playlistId: number, musicId: number): Promise<void> {
     // Get the junction record to update denormalized fields
-    const junctionRow = await this.db.get(
+    const junctionStmt = this.db.prepare(
       `
       SELECT * FROM playlist_music
       WHERE playlistId = ? AND musicId = ?
     `,
-      [playlistId, musicId],
     );
+    const junctionRow = junctionStmt.get(playlistId, musicId) as PlaylistMusic | undefined;
 
     if (!junctionRow) {
       throw new Error(`Music piece ${musicId} not found in playlist ${playlistId}`);
     }
 
     // Get music piece duration
-    const musicPiece = await this.db.get("SELECT duration FROM music_pieces WHERE id = ?", [
-      musicId,
-    ]);
+    const musicStmt = this.db.prepare("SELECT duration FROM music_pieces WHERE id = ?");
+    const musicPiece = musicStmt.get(musicId) as { duration: number } | undefined;
 
     if (!musicPiece) {
       throw new Error(`Music piece with ID ${musicId} not found`);
     }
 
     // Delete the junction record
-    await this.db.run(
+    const deleteStmt = this.db.prepare(
       `
       DELETE FROM playlist_music
       WHERE playlistId = ? AND musicId = ?
     `,
-      [playlistId, musicId],
     );
+    deleteStmt.run(playlistId, musicId);
 
     // Update playlist denormalized fields
-    await this.db.run(
+    const updateStmt = this.db.prepare(
       `
       UPDATE playlists
       SET songCount = songCount - 1,
           totalDuration = totalDuration - ?
       WHERE id = ?
     `,
-      [musicPiece.duration, playlistId],
     );
+    updateStmt.run(musicPiece.duration, playlistId);
 
     // Reorder remaining items in the playlist
-    await this.db.run(
+    const reorderStmt = this.db.prepare(
       `
       UPDATE playlist_music
       SET position = position - 1
       WHERE playlistId = ? AND position > ?
     `,
-      [playlistId, junctionRow.position],
     );
+    reorderStmt.run(playlistId, junctionRow.position);
   }
 }
 

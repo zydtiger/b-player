@@ -57,10 +57,10 @@ function createWindow() {
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on("window-all-closed", async () => {
+app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
+    databaseManager.close();
     app.quit();
-    await databaseManager.close();
     win = null;
   }
 });
@@ -73,8 +73,8 @@ app.on("activate", () => {
   }
 });
 
-app.whenReady().then(async () => {
-  await databaseManager.initialize();
+app.whenReady().then(() => {
+  databaseManager.initialize();
   initializeIpcMainHandlers();
   registerMediaHandlers(); // Register protocol handlers after app is ready
   createWindow();
