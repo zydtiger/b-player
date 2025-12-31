@@ -6,6 +6,7 @@ export interface MusicPlayerState {
   currentMusic?: MusicPiece;
   isPlaying: boolean;
   activePlaylist: string;
+  viewMode: "grid" | "list";
   isLoading: boolean;
   loadingMessage?: string;
   loadingProgress: number; // 0-100
@@ -15,6 +16,7 @@ const initialState: MusicPlayerState = {
   currentMusic: undefined,
   isPlaying: false,
   activePlaylist: "Library",
+  viewMode: "grid",
   isLoading: false,
   loadingMessage: undefined,
   loadingProgress: 0,
@@ -33,6 +35,9 @@ const musicPlayerSlice = createSlice({
     setActivePlaylist(state, action: PayloadAction<string>) {
       state.activePlaylist = action.payload;
     },
+    setViewMode(state, action: PayloadAction<"grid" | "list">) {
+      state.viewMode = action.payload;
+    },
     setLoading(state, action: PayloadAction<{ isLoading: boolean; message?: string; progress?: number }>) {
       state.isLoading = action.payload.isLoading;
       state.loadingMessage = action.payload.message;
@@ -43,6 +48,6 @@ const musicPlayerSlice = createSlice({
   },
 });
 
-export const { setCurrentMusic, setIsPlaying, setActivePlaylist, setLoading } = musicPlayerSlice.actions;
+export const { setCurrentMusic, setIsPlaying, setActivePlaylist, setViewMode, setLoading } = musicPlayerSlice.actions;
 
 export default musicPlayerSlice.reducer;
