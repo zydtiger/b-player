@@ -23,7 +23,7 @@ export default defineConfig({
           build: {
             rollupOptions: {
               // This tells Vite: "Don't touch these, keep them as native Node imports"
-              external: ["ytdlp-nodejs"],
+              external: ["ytdlp-nodejs", "better-sqlite3"],
             },
           },
         },
