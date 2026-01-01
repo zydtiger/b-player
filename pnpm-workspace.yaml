@@ -1,7 +1,0 @@
-onlyBuiltDependencies:
-  - '@ffprobe-installer/darwin-arm64'
-  - '@ffprobe-installer/linux-arm64'
-  - better-sqlite3
-  - electron
-  - esbuild
-  - ytdlp-nodejs
