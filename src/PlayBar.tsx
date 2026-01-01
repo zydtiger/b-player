@@ -68,6 +68,12 @@ const PlayBar: React.FC = () => {
     dispatch(playPrev());
   };
 
+  const handlePlay = () => {
+    window.ipcRenderer.invoke("updateLastPlayed", currentMusic.hash).catch((e) => {
+      console.error("Error updating lastPlayed:", e);
+    });
+  };
+
   const formatTime = (time: number) => {
     if (isNaN(time)) return "0:00";
     const minutes = Math.floor(time / 60);
@@ -113,6 +119,7 @@ const PlayBar: React.FC = () => {
             });
           }
         }}
+        onPlay={handlePlay}
       />
 
       {/* Left: Music Info */}

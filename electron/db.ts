@@ -224,6 +224,22 @@ export class MusicService {
     const rows = stmt.all() as MusicPiece[];
     return rows;
   }
+
+  /**
+   * Update the last played timestamp and increment play count for a music piece.
+   *
+   * @param hash Unique identifier of the music piece
+   * @throws Error if music piece not found or update fails
+   */
+  updateLastPlayed(hash: string): void {
+    const stmt = this.db.prepare(
+      `UPDATE music_pieces SET lastPlayed = CURRENT_TIMESTAMP, playCount = playCount + 1 WHERE hash = ?`,
+    );
+    const result = stmt.run(hash);
+    if (result.changes === 0) {
+      throw new Error(`Music piece with hash ${hash} not found`);
+    }
+  }
 }
 
 /**

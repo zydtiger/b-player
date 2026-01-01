@@ -125,4 +125,15 @@ export function initializeIpcMainHandlers(): void {
 
     return playlist;
   });
+
+  /**
+   * Handler for updating the last played timestamp.
+   *
+   * @param hash Unique identifier of the music piece
+   * @returns Promise<void>
+   */
+  ipcMain.handle("updateLastPlayed", async (_event, hash: string): Promise<void> => {
+    const musicService = new MusicService(databaseManager.getDatabase());
+    musicService.updateLastPlayed(hash);
+  });
 }
