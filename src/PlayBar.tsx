@@ -1,30 +1,39 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
-import { setIsPlaying } from "./store/slices/musicPlayer";
+import { setIsPlaying, playNext, playPrev } from "./store/slices/musicPlayer";
 
 const PlayBar: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { currentMusic, isPlaying } = useAppSelector((state) => state.musicPlayer);
+  const { queue, currentIndex, isPlaying } = useAppSelector((state) => state.musicPlayer);
+  const currentMusic = queue[currentIndex];
   const audioRef = useRef<HTMLAudioElement>(null);
+  const audioReadyRef = useRef(false);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+
+  // Reset audio ready state when track changes
+  useEffect(() => {
+    audioReadyRef.current = false;
+    setCurrentTime(0);
+    setDuration(currentMusic?.duration ?? 0);
+  }, [currentMusic]);
 
   // Handle audio playback
   useEffect(() => {
     const audioElem = audioRef.current;
     if (!audioElem) return;
 
-    if (isPlaying && audioElem.paused) {
-      audioRef.current.play().catch((e) => {
+    if (isPlaying && audioReadyRef.current && audioElem.paused) {
+      audioElem.play().catch((e) => {
         console.error("Error playing audio:", e);
         dispatch(setIsPlaying(false));
       });
-    } else {
-      audioRef.current.pause();
+    } else if (!isPlaying && !audioElem.paused) {
+      audioElem.pause();
     }
-  }, [currentMusic, isPlaying, dispatch]);
+  }, [isPlaying, dispatch]);
 
   // Handle volume change
   useEffect(() => {
@@ -52,13 +61,11 @@ const PlayBar: React.FC = () => {
   };
 
   const handlePlayNext = () => {
-    // TODO: not implemented yet
-    console.log("PlayBar: play next");
+    dispatch(playNext());
   };
 
   const handlePlayPrev = () => {
-    // TODO: not implemented yet
-    console.log("PlayBar: play prev");
+    dispatch(playPrev());
   };
 
   const formatTime = (time: number) => {
@@ -68,7 +75,7 @@ const PlayBar: React.FC = () => {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  if (!currentMusic) {
+  if (!currentMusic || currentIndex < 0) {
     return (
       <div className="fixed bottom-0 left-0 w-full h-20 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500">
         No music selected
@@ -98,9 +105,13 @@ const PlayBar: React.FC = () => {
         src={`audio://${currentMusic.hash}`}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handlePlayNext}
-        onLoadedMetadata={() => {
-          setCurrentTime(0);
-          setDuration(currentMusic.duration);
+        onCanPlay={() => {
+          audioReadyRef.current = true;
+          if (isPlaying) {
+            audioRef.current?.play().catch((e) => {
+              console.error("Error playing audio:", e);
+            });
+          }
         }}
       />
 
