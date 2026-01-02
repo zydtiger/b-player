@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#A78BFA;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4F46E5;stop-opacity:1" />
+    </linearGradient>
+
+    <linearGradient id="glassGloss" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.45" />
+      <stop offset="60%" style="stop-color:#FFFFFF;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </linearGradient>
+
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="115" ry="115" fill="url(#purpleGradient)"/>
+
+  <path d="M100 120 Q 256 80 412 120 Q 450 256 412 392 Q 256 432 100 392 Q 60 256 100 120 Z" fill="url(#glassGloss)" opacity="0.3" />
+
+  <g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="14" stroke-linejoin="round" stroke-linecap="round" filter="url(#softGlow)">
+    <path d="M180 340 c -25 0 -45 15 -45 35 s 20 35 45 35 s 45 -15 45 -35 V 160 l 140 -30 v 180 c -25 0 -45 15 -45 35 s 20 35 45 35 s 45 -15 45 -35 V 100 L 180 140 Z" />
+  </g>
+
+  <ellipse cx="160" cy="100" rx="80" ry="30" fill="#FFFFFF" opacity="0.4" transform="rotate(-15, 160, 100)" />
+  <circle cx="400" cy="400" r="15" fill="#FFFFFF" opacity="0.2" />
+  <circle cx="430" cy="370" r="8" fill="#FFFFFF" opacity="0.2" />
+
+  <rect x="20" y="20" width="472" height="472" rx="100" ry="100" fill="url(#glassGloss)" />
+</svg>
