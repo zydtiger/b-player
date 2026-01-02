@@ -37,8 +37,8 @@ export const MusicPieceSchema = BaseEntitySchema.extend({
   fileSize: z.number().min(0), // in bytes
   /** Number of times this track has been played */
   playCount: z.number().min(0),
-  /** Date and time when this track was last played */
-  lastPlayed: z.coerce.date().optional(),
+  /** Date and time when this track was last played (nullable in SQLite) */
+  lastPlayed: z.coerce.date().nullable(),
 });
 
 /**
@@ -56,9 +56,9 @@ export const PlaylistSchema = BaseEntitySchema.extend({
   /** Name/title of the playlist */
   name: z.string().min(1),
   /** Description of the playlist */
-  description: z.string().min(1).optional(),
-  /** Whether the playlist is pinned by the user */
-  isPinned: z.boolean().default(false),
+  description: z.string().min(1).nullable(),
+  /** Whether the playlist is pinned by the user (0/1 integer in SQLite, converted to boolean) */
+  isPinned: z.preprocess((val) => Boolean(val), z.boolean().default(false)),
   /** Total number of songs in the playlist (denormalized for performance) */
   songCount: z.number().min(0).default(0),
   /** Total duration of all songs in seconds (denormalized for performance) */

@@ -140,6 +140,7 @@ export async function importMusic(
           duration: audioStats.duration,
           fileSize: audioStats.fileSize,
           playCount: 0,
+          lastPlayed: null,
         });
 
         onProgress?.({ stage: "metadata", progress: 100, message: "Complete!" });
@@ -291,6 +292,7 @@ export async function importPlaylist(
         // Create playlist in database
         const newPlaylist = await playlistService.createPlaylist({
           name: playlistResult.title,
+          description: null,
           isPinned: true,
           songCount: totalMusic,
           totalDuration: 0, // Will be updated as music is added
@@ -345,6 +347,7 @@ export async function importPlaylist(
                   duration: audioStats.duration,
                   fileSize: audioStats.fileSize,
                   playCount: 0,
+                  lastPlayed: null,
                 });
 
                 musicId = createdMusic.id;

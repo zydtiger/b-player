@@ -13,11 +13,6 @@ import {
   PlaylistWithMusic,
 } from "../shared/model";
 
-/**
- * Database row type for playlists (isPinned is stored as number in SQLite)
- */
-type PlaylistRow = Omit<Playlist, "isPinned"> & { isPinned: number };
-
 let db: Database.Database | null = null;
 
 /**
@@ -197,11 +192,11 @@ export class MusicService {
    */
   async getMusicPieceById(id: number): Promise<MusicPiece> {
     const stmt = this.db.prepare("SELECT * FROM music_pieces WHERE id = ?");
-    const row = stmt.get(id) as MusicPiece | undefined;
+    const row = stmt.get(id);
     if (!row) {
       throw new Error(`Music piece with ID ${id} not found`);
     }
-    return row;
+    return MusicPieceSchema.parse(row);
   }
 
   /**
@@ -209,11 +204,11 @@ export class MusicService {
    */
   async getMusicPieceByHash(hash: string): Promise<MusicPiece | null> {
     const stmt = this.db.prepare("SELECT * FROM music_pieces WHERE hash = ?");
-    const row = stmt.get(hash) as MusicPiece | undefined;
+    const row = stmt.get(hash);
     if (!row) {
       return null;
     }
-    return row;
+    return MusicPieceSchema.parse(row);
   }
 
   /**
@@ -221,8 +216,8 @@ export class MusicService {
    */
   async getAllMusicPieces(): Promise<MusicPiece[]> {
     const stmt = this.db.prepare("SELECT * FROM music_pieces");
-    const rows = stmt.all() as MusicPiece[];
-    return rows;
+    const rows = stmt.all();
+    return MusicPieceSchema.array().parse(rows);
   }
 
   /**
@@ -304,21 +299,11 @@ export class PlaylistService {
    */
   async getPlaylistById(id: number): Promise<Playlist> {
     const stmt = this.db.prepare("SELECT * FROM playlists WHERE id = ?");
-    const row = stmt.get(id) as PlaylistRow | undefined;
+    const row = stmt.get(id);
     if (!row) {
       throw new Error(`Playlist with ID ${id} not found`);
     }
-    // Convert isPinned from integer to boolean
-    return {
-      id: row.id,
-      createdAt: new Date(row.createdAt),
-      updatedAt: new Date(row.updatedAt),
-      name: row.name,
-      description: row.description ?? undefined,
-      isPinned: Boolean(row.isPinned),
-      songCount: row.songCount,
-      totalDuration: row.totalDuration,
-    };
+    return PlaylistSchema.parse(row);
   }
 
   /**
@@ -328,20 +313,8 @@ export class PlaylistService {
    */
   async getAllPlaylists(): Promise<Playlist[]> {
     const stmt = this.db.prepare("SELECT * FROM playlists");
-    const rows = stmt.all() as PlaylistRow[];
-    // Convert isPinned from integer to boolean for each row
-    return rows.map(
-      (row): Playlist => ({
-        id: row.id,
-        createdAt: new Date(row.createdAt),
-        updatedAt: new Date(row.updatedAt),
-        name: row.name,
-        description: row.description ?? undefined,
-        isPinned: Boolean(row.isPinned),
-        songCount: row.songCount,
-        totalDuration: row.totalDuration,
-      }),
-    );
+    const rows = stmt.all();
+    return PlaylistSchema.array().parse(rows);
   }
 
   /**
@@ -353,11 +326,14 @@ export class PlaylistService {
    */
   async getPlaylistWithMusic(id: number): Promise<PlaylistWithMusic> {
     const playlistStmt = this.db.prepare("SELECT * FROM playlists WHERE id = ?");
-    const playlistRow = playlistStmt.get(id) as PlaylistRow | undefined;
+    const playlistRow = playlistStmt.get(id);
 
     if (!playlistRow) {
       throw new Error(`Playlist with ID ${id} not found`);
     }
+
+    // Parse playlist using Zod
+    const playlist = PlaylistSchema.parse(playlistRow);
 
     // Get all music pieces in this playlist
     const musicStmt = this.db.prepare(`
@@ -371,38 +347,13 @@ export class PlaylistService {
       ORDER BY pm.position ASC
     `);
 
-    const musicRows = musicStmt.all(id) as (MusicPiece & { position: number; addedAt: string })[];
+    const musicRows = musicStmt.all(id);
 
-    // Convert database row to Playlist type
-    const playlist: Playlist = {
-      id: playlistRow.id,
-      createdAt: new Date(playlistRow.createdAt),
-      updatedAt: new Date(playlistRow.updatedAt),
-      name: playlistRow.name,
-      description: playlistRow.description ?? undefined,
-      isPinned: Boolean(playlistRow.isPinned),
-      songCount: playlistRow.songCount,
-      totalDuration: playlistRow.totalDuration,
-    };
-
-    // Map music pieces to the expected format
+    // Map music pieces using Zod parsing
     const musicPieces = musicRows.map((row) => ({
-      music: {
-        id: row.id,
-        createdAt: new Date(row.createdAt),
-        updatedAt: new Date(row.updatedAt),
-        name: row.name,
-        hash: row.hash,
-        srcLink: row.srcLink,
-        author: row.author,
-        authorLink: row.authorLink,
-        duration: row.duration,
-        fileSize: row.fileSize,
-        playCount: row.playCount,
-        lastPlayed: row.lastPlayed ? new Date(row.lastPlayed) : undefined,
-      },
-      position: row.position,
-      addedAt: new Date(row.addedAt),
+      music: MusicPieceSchema.parse(row),
+      position: (row as { position: number }).position,
+      addedAt: new Date((row as { addedAt: string }).addedAt),
     }));
 
     return {
