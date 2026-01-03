@@ -93,17 +93,20 @@ export function initializeIpcMainHandlers(): void {
    * @returns Promise<MusicPiece> The created music piece with all fields
    * @throws Error if import fails or database operation fails
    */
-  ipcMain.handle("importMusic", async (event: IpcMainInvokeEvent, url: string): Promise<MusicPiece> => {
-    // Progress callback to send updates to renderer
-    const onProgress = (progress: DownloadProgress) => {
-      event.sender.send("import-progress", progress);
-    };
+  ipcMain.handle(
+    "importMusic",
+    async (event: IpcMainInvokeEvent, url: string): Promise<MusicPiece> => {
+      // Progress callback to send updates to renderer
+      const onProgress = (progress: DownloadProgress) => {
+        event.sender.send("import-progress", progress);
+      };
 
-    // Import music by scraping, downloading assets, and creating database entry
-    const musicPiece = await importMusic(url, onProgress);
+      // Import music by scraping, downloading assets, and creating database entry
+      const musicPiece = await importMusic(url, onProgress);
 
-    return musicPiece;
-  });
+      return musicPiece;
+    },
+  );
 
   /**
    * Handler for importing a playlist from a URL.
@@ -114,17 +117,20 @@ export function initializeIpcMainHandlers(): void {
    * @returns Promise<Playlist> The created playlist with all fields
    * @throws Error if import fails or database operation fails
    */
-  ipcMain.handle("importPlaylist", async (event: IpcMainInvokeEvent, url: string): Promise<Playlist> => {
-    // Progress callback to send updates to renderer
-    const onProgress = (progress: DownloadProgress) => {
-      event.sender.send("import-progress", progress);
-    };
+  ipcMain.handle(
+    "importPlaylist",
+    async (event: IpcMainInvokeEvent, url: string): Promise<Playlist> => {
+      // Progress callback to send updates to renderer
+      const onProgress = (progress: DownloadProgress) => {
+        event.sender.send("import-progress", progress);
+      };
 
-    // Import playlist by scraping, downloading assets, and creating database entries
-    const playlist = await importPlaylist(url, onProgress);
+      // Import playlist by scraping, downloading assets, and creating database entries
+      const playlist = await importPlaylist(url, onProgress);
 
-    return playlist;
-  });
+      return playlist;
+    },
+  );
 
   /**
    * Handler for updating the last played timestamp.
@@ -136,4 +142,46 @@ export function initializeIpcMainHandlers(): void {
     const musicService = new MusicService(databaseManager.getDatabase());
     musicService.updateLastPlayed(hash);
   });
+
+  /**
+   * Handler for deleting a music piece from the database.
+   * Removes the music piece and all associated playlist junctions.
+   *
+   * @param musicId The ID of the music piece to delete
+   * @returns Promise<void>
+   * @throws Error if music piece not found or deletion fails
+   */
+  ipcMain.handle("deleteMusicPiece", async (_event, musicId: number): Promise<void> => {
+    const musicService = new MusicService(databaseManager.getDatabase());
+    musicService.deleteMusicPiece(musicId);
+  });
+
+  /**
+   * Handler for getting a playlist by name.
+   *
+   * @param name The playlist name
+   * @returns Promise<Playlist> The playlist with all fields
+   * @throws Error if playlist not found
+   */
+  ipcMain.handle("getPlaylistByName", async (_event, name: string): Promise<Playlist> => {
+    const playlistService = new PlaylistService(databaseManager.getDatabase());
+    return await playlistService.getPlaylistByName(name);
+  });
+
+  /**
+   * Handler for removing a music piece from a specific playlist.
+   * Removes the junction record and updates playlist denormalized fields.
+   *
+   * @param playlistId The playlist ID
+   * @param musicId The music piece ID
+   * @returns Promise<void>
+   * @throws Error if playlist or music not found
+   */
+  ipcMain.handle(
+    "removeMusicFromPlaylist",
+    async (_event, playlistId: number, musicId: number): Promise<void> => {
+      const playlistService = new PlaylistService(databaseManager.getDatabase());
+      await playlistService.removeMusicFromPlaylist(playlistId, musicId);
+    },
+  );
 }
