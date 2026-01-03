@@ -15,6 +15,26 @@ interface AlertDialogProps {
 }
 
 /**
+ * Props for the confirm type dialog.
+ */
+interface ConfirmDialogProps {
+  /** Title text to display at the top of the dialog */
+  title: string;
+  /** Main content text of the dialog */
+  message: string;
+  /** Text to display on the confirm button (default: "Yes") */
+  confirmText?: string;
+  /** Text to display on the cancel button (default: "Cancel") */
+  cancelText?: string;
+  /** Whether the confirm action is destructive (default: false) */
+  isDestructive?: boolean;
+  /** Callback fired when the user clicks the confirm button */
+  onConfirm?: () => void;
+  /** Callback fired when the user clicks the cancel button */
+  onCancel?: () => void;
+}
+
+/**
  * Props for the input type dialog.
  */
 interface InputDialogProps {
@@ -35,13 +55,15 @@ interface InputDialogProps {
  */
 interface DialogProps {
   /** Determines which internal dialog component to render */
-  type: "alert" | "input";
+  type: "alert" | "confirm" | "input";
   /** Controls visibility of the modal overlay */
   isOpen: boolean;
   /** General handler to close the modal wrapper */
   onClose: () => void;
   /** Configuration for the alert dialog type */
   alert?: AlertDialogProps;
+  /** Configuration for the confirm dialog type */
+  confirm?: ConfirmDialogProps;
   /** Configuration for the input dialog type */
   input?: InputDialogProps;
 }
@@ -65,6 +87,44 @@ const AlertDialog: React.FC<AlertDialogProps> = ({ title, message, onConfirm }) 
           className="px-3 py-1.5 appearance-none bg-blue-800 hover:bg-blue-700 dark:bg-indigo-800 dark:hover:bg-indigo-700 text-white rounded-lg transition-colors duration-150 focus:outline-none active:outline-none active:border-transparent"
         >
           Ok
+        </button>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Renders a confirmation dialog with title, message, and confirm/cancel actions.
+ *
+ * @param props Component properties including title, message, button text, and handlers
+ * @returns React component for confirm dialog
+ */
+const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
+  title,
+  message,
+  confirmText = "Yes",
+  cancelText = "Cancel",
+  isDestructive = false,
+  onConfirm,
+  onCancel,
+}) => {
+  const confirmButtonClass = isDestructive
+    ? "px-3 py-1.5 appearance-none bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white rounded-lg transition-colors duration-150 focus:outline-none active:outline-none active:border-transparent"
+    : "px-3 py-1.5 appearance-none bg-blue-800 hover:bg-blue-700 dark:bg-indigo-800 dark:hover:bg-indigo-700 text-white rounded-lg transition-colors duration-150 focus:outline-none active:outline-none active:border-transparent";
+
+  return (
+    <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md w-full max-w-md transition-all duration-200">
+      <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100 mb-2">{title}</h3>
+      <p className="text-gray-700 dark:text-gray-300">{message}</p>
+      <div className="flex justify-end gap-2 mt-4">
+        <button
+          onClick={onCancel}
+          className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg transition-colors duration-150 focus:outline-none"
+        >
+          {cancelText}
+        </button>
+        <button onClick={onConfirm} className={confirmButtonClass}>
+          {confirmText}
         </button>
       </div>
     </div>
@@ -131,7 +191,7 @@ const InputDialog: React.FC<InputDialogProps> = ({
  * @param props Configuration props for routing and displaying the correct dialog
  * @returns The composed dialog component or null if not open
  */
-const Dialog: React.FC<DialogProps> = ({ type, isOpen, onClose, alert, input }) => {
+const Dialog: React.FC<DialogProps> = ({ type, isOpen, onClose, alert, confirm, input }) => {
   if (!isOpen) {
     return null;
   }
@@ -151,6 +211,16 @@ const Dialog: React.FC<DialogProps> = ({ type, isOpen, onClose, alert, input }) 
     else defaultOnConfirm();
   };
 
+  const handleConfirmDialogConfirm = () => {
+    if (confirm?.onConfirm) confirm.onConfirm();
+    else defaultOnConfirm();
+  };
+
+  const handleConfirmDialogCancel = () => {
+    if (confirm?.onCancel) confirm.onCancel();
+    else defaultOnCancel();
+  };
+
   const handleInputConfirm = (value: string) => {
     if (input?.onConfirm) input.onConfirm(value);
     else defaultOnConfirm();
@@ -165,6 +235,17 @@ const Dialog: React.FC<DialogProps> = ({ type, isOpen, onClose, alert, input }) 
     <div className="fixed inset-0 w-full h-full bg-black/50 dark:bg-black/60 flex justify-center items-center z-50 transition-opacity duration-200">
       {type === "alert" && alert && (
         <AlertDialog title={alert.title} message={alert.message} onConfirm={handleAlertConfirm} />
+      )}
+      {type === "confirm" && confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          confirmText={confirm.confirmText}
+          cancelText={confirm.cancelText}
+          isDestructive={confirm.isDestructive}
+          onConfirm={handleConfirmDialogConfirm}
+          onCancel={handleConfirmDialogCancel}
+        />
       )}
       {type === "input" && input && (
         <InputDialog
