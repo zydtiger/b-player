@@ -214,7 +214,7 @@ export class MusicService {
   /**
    * Get all music pieces
    */
-  async getAllMusicPieces(): Promise<MusicPiece[]> {
+  getAllMusicPieces(): MusicPiece[] {
     const stmt = this.db.prepare("SELECT * FROM music_pieces");
     const rows = stmt.all();
     return MusicPieceSchema.array().parse(rows);
@@ -234,6 +234,64 @@ export class MusicService {
     if (result.changes === 0) {
       throw new Error(`Music piece with hash ${hash} not found`);
     }
+  }
+
+  /**
+   * Delete a music piece from the database and all associated playlist junctions
+   *
+   * @param musicId The music piece ID to delete
+   * @throws Error if music piece not found
+   */
+  deleteMusicPiece(musicId: number): void {
+    if (!db) throw new Error("Database not initialized");
+
+    // Get music piece to update playlists
+    const musicStmt = db.prepare("SELECT * FROM music_pieces WHERE id = ?");
+    const musicPiece = musicStmt.get(musicId) as { duration: number } | undefined;
+
+    if (!musicPiece) {
+      throw new Error(`Music piece with ID ${musicId} not found`);
+    }
+
+    // Get all playlists that contain this music piece
+    const junctionStmt = db.prepare(
+      `
+      SELECT playlistId FROM playlist_music WHERE musicId = ?
+    `,
+    );
+    const junctionRows = junctionStmt.all(musicId) as { playlistId: number }[];
+
+    // Delete all junction records for this music piece
+    const deleteJunctionStmt = db.prepare(
+      `
+      DELETE FROM playlist_music WHERE musicId = ?
+    `,
+    );
+    deleteJunctionStmt.run(musicId);
+
+    // Update all affected playlists' denormalized fields
+    if (junctionRows.length > 0) {
+      const updatePlaylistStmt = db.prepare(
+        `
+        UPDATE playlists
+        SET songCount = songCount - 1,
+            totalDuration = totalDuration - ?
+        WHERE id = ?
+      `,
+      );
+
+      for (const row of junctionRows) {
+        updatePlaylistStmt.run(musicPiece.duration, row.playlistId);
+      }
+    }
+
+    // Delete the music piece from the database
+    const deleteMusicStmt = db.prepare(
+      `
+      DELETE FROM music_pieces WHERE id = ?
+    `,
+    );
+    deleteMusicStmt.run(musicId);
   }
 }
 
@@ -315,6 +373,22 @@ export class PlaylistService {
     const stmt = this.db.prepare("SELECT * FROM playlists");
     const rows = stmt.all();
     return PlaylistSchema.array().parse(rows);
+  }
+
+  /**
+   * Get playlist by name
+   *
+   * @param name The playlist name
+   * @returns The playlist data
+   * @throws Error if playlist not found
+   */
+  async getPlaylistByName(name: string): Promise<Playlist> {
+    const stmt = this.db.prepare("SELECT * FROM playlists WHERE name = ?");
+    const row = stmt.get(name);
+    if (!row) {
+      throw new Error(`Playlist with name "${name}" not found`);
+    }
+    return PlaylistSchema.parse(row);
   }
 
   /**
