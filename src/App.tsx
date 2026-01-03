@@ -1,27 +1,34 @@
 import { useState, useEffect } from "react";
 import { MusicPiece, Playlist, PlaylistWithMusic } from "../shared/model";
-import ListView from "./components/ListView";
-import GridView from "./components/GridView";
 import PlaylistGrid from "./components/PlaylistGrid";
+import PlaylistList from "./components/PlaylistList";
 import LoadingOverlay from "./components/LoadingOverlay";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { setQueue, jumpToIndex, setIsPlaying, setLoading } from "./store/slices/musicPlayer";
 import PlayBar from "./PlayBar";
 import SideBar from "./SideBar";
 import TopBar from "./TopBar";
-import PlaylistList from "./components/PlaylistList";
+import GroupedView from "./views/GroupedView";
+import BasicView from "./views/BasicView";
 
 function App() {
-  const { isLoading, loadingMessage, loadingProgress, activePlaylist, viewMode, queue, queueSourcePlaylist } =
-    useAppSelector((state) => ({
-      isLoading: state.musicPlayer.isLoading,
-      loadingMessage: state.musicPlayer.loadingMessage,
-      loadingProgress: state.musicPlayer.loadingProgress,
-      activePlaylist: state.musicPlayer.activePlaylist,
-      viewMode: state.musicPlayer.viewMode,
-      queue: state.musicPlayer.queue,
-      queueSourcePlaylist: state.musicPlayer.queueSourcePlaylist,
-    }));
+  const {
+    isLoading,
+    loadingMessage,
+    loadingProgress,
+    activePlaylist,
+    viewMode,
+    queue,
+    queueSourcePlaylist,
+  } = useAppSelector((state) => ({
+    isLoading: state.musicPlayer.isLoading,
+    loadingMessage: state.musicPlayer.loadingMessage,
+    loadingProgress: state.musicPlayer.loadingProgress,
+    activePlaylist: state.musicPlayer.activePlaylist,
+    viewMode: state.musicPlayer.viewMode,
+    queue: state.musicPlayer.queue,
+    queueSourcePlaylist: state.musicPlayer.queueSourcePlaylist,
+  }));
   const dispatch = useAppDispatch();
   const [musicPieces, setMusicPieces] = useState<MusicPiece[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -107,7 +114,7 @@ function App() {
           queue: newQueue,
           index: index >= 0 ? index : 0,
           source: activePlaylist,
-        })
+        }),
       );
     }
     dispatch(setIsPlaying(true));
@@ -148,14 +155,35 @@ function App() {
           <div className="max-w-full mx-auto">
             {activePlaylist === "Playlists" ? (
               viewMode === "grid" ? (
-                <PlaylistGrid playlists={playlistsWithMusic} onPlaylistClick={handlePlaylistClick} />
+                <PlaylistGrid
+                  playlists={playlistsWithMusic}
+                  onPlaylistClick={handlePlaylistClick}
+                />
               ) : (
-                <PlaylistList playlists={playlistsWithMusic} onPlaylistClick={handlePlaylistClick} />
+                <PlaylistList
+                  playlists={playlistsWithMusic}
+                  onPlaylistClick={handlePlaylistClick}
+                />
               )
-            ) : viewMode === "grid" ? (
-              <GridView musicPieces={musicPieces} onMusicClick={handleMusicClick} />
+            ) : activePlaylist === "Recently Added" || activePlaylist === "Recently Played" ? (
+              <GroupedView
+                type={activePlaylist === "Recently Added" ? "recently-added" : "recently-played"}
+                viewMode={viewMode}
+                onMusicClick={handleMusicClick}
+                allMusic={musicPieces}
+              />
             ) : (
-              <ListView musicPieces={musicPieces} onMusicClick={handleMusicClick} />
+              <BasicView
+                viewMode={viewMode}
+                onMusicClick={handleMusicClick}
+                musicPieces={
+                  activePlaylist === "Library"
+                    ? musicPieces
+                    : (playlistsWithMusic
+                        .find((p) => p.name === activePlaylist)
+                        ?.musicPieces.map((item) => item.music) ?? musicPieces)
+                }
+              />
             )}
           </div>
         </div>
