@@ -62,7 +62,7 @@ const GroupedView: React.FC<GroupedViewProps> = ({ type, viewMode, onMusicClick,
           key={group.label}
           title={`${group.label} (${group.music.length})`}
           defaultExpanded={true}
-          className="border-none"
+          className="border-none mx-4 mt-4"
         >
           {viewMode === "grid" ? (
             <GridView musicPieces={group.music} onMusicClick={onMusicClick} />

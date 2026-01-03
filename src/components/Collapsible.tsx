@@ -124,7 +124,7 @@ export const Collapsible: React.FC<CollapsibleProps> = ({
         }}
         aria-hidden={!expanded}
       >
-        <div ref={contentRef} className="p-4 pt-0">
+        <div ref={contentRef} className="p-2 pt-0">
           {children}
         </div>
       </div>
