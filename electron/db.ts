@@ -148,9 +148,7 @@ export class MusicService {
   /**
    * Create a new music piece
    */
-  async createMusicPiece(
-    piece: Omit<MusicPiece, "id" | "createdAt" | "updatedAt">,
-  ): Promise<MusicPiece> {
+  createMusicPiece(piece: Omit<MusicPiece, "id" | "createdAt" | "updatedAt">): MusicPiece {
     // Validate input using Zod schema
     const validatedPiece = MusicPieceSchema.omit({
       id: true,
@@ -190,7 +188,7 @@ export class MusicService {
   /**
    * Get music piece by ID
    */
-  async getMusicPieceById(id: number): Promise<MusicPiece> {
+  getMusicPieceById(id: number): MusicPiece {
     const stmt = this.db.prepare("SELECT * FROM music_pieces WHERE id = ?");
     const row = stmt.get(id);
     if (!row) {
@@ -202,7 +200,7 @@ export class MusicService {
   /**
    * Get music piece by hash
    */
-  async getMusicPieceByHash(hash: string): Promise<MusicPiece | null> {
+  getMusicPieceByHash(hash: string): MusicPiece | null {
     const stmt = this.db.prepare("SELECT * FROM music_pieces WHERE hash = ?");
     const row = stmt.get(hash);
     if (!row) {
@@ -312,9 +310,7 @@ export class PlaylistService {
    * @returns The created playlist with all fields
    * @throws Error if creation fails
    */
-  async createPlaylist(
-    playlist: Omit<Playlist, "id" | "createdAt" | "updatedAt">,
-  ): Promise<Playlist> {
+  createPlaylist(playlist: Omit<Playlist, "id" | "createdAt" | "updatedAt">): Playlist {
     // Validate input using Zod schema
     const validatedPlaylist = PlaylistSchema.omit({
       id: true,
@@ -355,7 +351,7 @@ export class PlaylistService {
    * @returns The playlist data
    * @throws Error if playlist not found
    */
-  async getPlaylistById(id: number): Promise<Playlist> {
+  getPlaylistById(id: number): Playlist {
     const stmt = this.db.prepare("SELECT * FROM playlists WHERE id = ?");
     const row = stmt.get(id);
     if (!row) {
@@ -369,7 +365,7 @@ export class PlaylistService {
    *
    * @returns Array of all playlists
    */
-  async getAllPlaylists(): Promise<Playlist[]> {
+  getAllPlaylists(): Playlist[] {
     const stmt = this.db.prepare("SELECT * FROM playlists");
     const rows = stmt.all();
     return PlaylistSchema.array().parse(rows);
@@ -382,7 +378,7 @@ export class PlaylistService {
    * @returns The playlist data
    * @throws Error if playlist not found
    */
-  async getPlaylistByName(name: string): Promise<Playlist> {
+  getPlaylistByName(name: string): Playlist {
     const stmt = this.db.prepare("SELECT * FROM playlists WHERE name = ?");
     const row = stmt.get(name);
     if (!row) {
@@ -398,7 +394,7 @@ export class PlaylistService {
    * @returns The playlist with all music pieces ordered by position
    * @throws Error if playlist not found
    */
-  async getPlaylistWithMusic(id: number): Promise<PlaylistWithMusic> {
+  getPlaylistWithMusic(id: number): PlaylistWithMusic {
     const playlistStmt = this.db.prepare("SELECT * FROM playlists WHERE id = ?");
     const playlistRow = playlistStmt.get(id);
 
@@ -445,11 +441,7 @@ export class PlaylistService {
    * @returns The created junction record
    * @throws Error if operation fails
    */
-  async insertMusicToPlaylist(
-    playlistId: number,
-    musicId: number,
-    position?: number,
-  ): Promise<PlaylistMusic> {
+  insertMusicToPlaylist(playlistId: number, musicId: number, position?: number): PlaylistMusic {
     // Get music piece to calculate duration
     const musicStmt = this.db.prepare("SELECT * FROM music_pieces WHERE id = ?");
     const musicPiece = musicStmt.get(musicId) as { duration: number } | undefined;
@@ -526,7 +518,7 @@ export class PlaylistService {
    * @param musicId The music piece ID
    * @throws Error if playlist or music not found
    */
-  async removeMusicFromPlaylist(playlistId: number, musicId: number): Promise<void> {
+  removeMusicFromPlaylist(playlistId: number, musicId: number): void {
     // Get the junction record to update denormalized fields
     const junctionStmt = this.db.prepare(
       `

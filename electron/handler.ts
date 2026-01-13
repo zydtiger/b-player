@@ -16,12 +16,12 @@ export function initializeIpcMainHandlers(): void {
    * @returns Promise<MusicPiece[]> Array of all music pieces in the database
    * @throws Error if database is not initialized or query fails
    */
-  ipcMain.handle("getAllMusicPieces", async (): Promise<MusicPiece[]> => {
+  ipcMain.handle("getAllMusicPieces", (): MusicPiece[] => {
     // Create music service instance with database connection
     const musicService = new MusicService(databaseManager.getDatabase());
 
     // Retrieve all music pieces from database
-    const musicPieces = await musicService.getAllMusicPieces();
+    const musicPieces = musicService.getAllMusicPieces();
 
     return musicPieces;
   });
@@ -32,12 +32,12 @@ export function initializeIpcMainHandlers(): void {
    * @returns Promise<Playlist[]> Array of all playlists in the database
    * @throws Error if database is not initialized or query fails
    */
-  ipcMain.handle("getAllPlaylists", async (): Promise<Playlist[]> => {
+  ipcMain.handle("getAllPlaylists", (): Playlist[] => {
     // Create playlist service instance with database connection
     const playlistService = new PlaylistService(databaseManager.getDatabase());
 
     // Retrieve all playlists from database
-    const playlists = await playlistService.getAllPlaylists();
+    const playlists = playlistService.getAllPlaylists();
 
     return playlists;
   });
@@ -49,18 +49,15 @@ export function initializeIpcMainHandlers(): void {
    * @returns Promise<PlaylistWithMusic> The playlist with all music pieces
    * @throws Error if database is not initialized or playlist not found
    */
-  ipcMain.handle(
-    "getPlaylistWithMusic",
-    async (_event, playlistId: number): Promise<PlaylistWithMusic> => {
-      // Create playlist service instance with database connection
-      const playlistService = new PlaylistService(databaseManager.getDatabase());
+  ipcMain.handle("getPlaylistWithMusic", (_event, playlistId: number): PlaylistWithMusic => {
+    // Create playlist service instance with database connection
+    const playlistService = new PlaylistService(databaseManager.getDatabase());
 
-      // Retrieve playlist with music pieces from database
-      const playlist = await playlistService.getPlaylistWithMusic(playlistId);
+    // Retrieve playlist with music pieces from database
+    const playlist = playlistService.getPlaylistWithMusic(playlistId);
 
-      return playlist;
-    },
-  );
+    return playlist;
+  });
 
   /**
    * Handler for retrieving the music directory path for a given hash.
@@ -68,7 +65,7 @@ export function initializeIpcMainHandlers(): void {
    * @param hash Unique identifier used as directory name for organizing files
    * @returns Promise<string> Absolute path to the hash-based music directory
    */
-  ipcMain.handle("getMusicDir", async (_event, hash: string): Promise<string> => {
+  ipcMain.handle("getMusicDir", (_event, hash: string): string => {
     // Get the directory path for the given hash
     const musicDir = getMusicDir(hash);
     return musicDir;
@@ -80,7 +77,7 @@ export function initializeIpcMainHandlers(): void {
    * @param path Absolute path to open in file explorer
    * @returns Promise<void>
    */
-  ipcMain.handle("openInExplorer", async (_event, filePath: string): Promise<void> => {
+  ipcMain.handle("openInExplorer", (_event, filePath: string): void => {
     // Open the path in the system's default file explorer
     shell.openPath(filePath);
   });
@@ -138,7 +135,7 @@ export function initializeIpcMainHandlers(): void {
    * @param hash Unique identifier of the music piece
    * @returns Promise<void>
    */
-  ipcMain.handle("updateLastPlayed", async (_event, hash: string): Promise<void> => {
+  ipcMain.handle("updateLastPlayed", (_event, hash: string): void => {
     const musicService = new MusicService(databaseManager.getDatabase());
     musicService.updateLastPlayed(hash);
   });
@@ -151,7 +148,7 @@ export function initializeIpcMainHandlers(): void {
    * @returns Promise<void>
    * @throws Error if music piece not found or deletion fails
    */
-  ipcMain.handle("deleteMusicPiece", async (_event, musicId: number): Promise<void> => {
+  ipcMain.handle("deleteMusicPiece", (_event, musicId: number): void => {
     const musicService = new MusicService(databaseManager.getDatabase());
     musicService.deleteMusicPiece(musicId);
   });
@@ -163,9 +160,9 @@ export function initializeIpcMainHandlers(): void {
    * @returns Promise<Playlist> The playlist with all fields
    * @throws Error if playlist not found
    */
-  ipcMain.handle("getPlaylistByName", async (_event, name: string): Promise<Playlist> => {
+  ipcMain.handle("getPlaylistByName", (_event, name: string): Playlist => {
     const playlistService = new PlaylistService(databaseManager.getDatabase());
-    return await playlistService.getPlaylistByName(name);
+    return playlistService.getPlaylistByName(name);
   });
 
   /**
@@ -177,11 +174,8 @@ export function initializeIpcMainHandlers(): void {
    * @returns Promise<void>
    * @throws Error if playlist or music not found
    */
-  ipcMain.handle(
-    "removeMusicFromPlaylist",
-    async (_event, playlistId: number, musicId: number): Promise<void> => {
-      const playlistService = new PlaylistService(databaseManager.getDatabase());
-      await playlistService.removeMusicFromPlaylist(playlistId, musicId);
-    },
-  );
+  ipcMain.handle("removeMusicFromPlaylist", (_event, playlistId: number, musicId: number): void => {
+    const playlistService = new PlaylistService(databaseManager.getDatabase());
+    playlistService.removeMusicFromPlaylist(playlistId, musicId);
+  });
 }
