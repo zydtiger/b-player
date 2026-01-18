@@ -131,7 +131,7 @@ export async function importMusic(
         const musicService = new MusicService(databaseManager.getDatabase());
 
         // Save music piece to database and return the complete MusicPiece
-        const musicPiece = await musicService.createMusicPiece({
+        const musicPiece = musicService.createMusicPiece({
           name: musicResult.name,
           hash,
           srcLink: musicResult.srcLink,
@@ -290,7 +290,7 @@ export async function importPlaylist(
         const musicService = new MusicService(databaseManager.getDatabase());
 
         // Create playlist in database
-        const newPlaylist = await playlistService.createPlaylist({
+        const newPlaylist = playlistService.createPlaylist({
           name: playlistResult.title,
           description: null,
           isPinned: true,
@@ -320,7 +320,7 @@ export async function importPlaylist(
                 .digest("hex");
 
               // Check if music already exists
-              const existingMusic = await musicService.getMusicPieceByHash(hash);
+              const existingMusic = musicService.getMusicPieceByHash(hash);
               let musicId: number;
 
               if (existingMusic) {
@@ -338,7 +338,7 @@ export async function importPlaylist(
                 const audioStats = await getAudioStats(hash);
 
                 // Create music piece in database
-                const createdMusic = await musicService.createMusicPiece({
+                const createdMusic = musicService.createMusicPiece({
                   name: musicData.name,
                   hash,
                   srcLink: musicData.srcLink,
@@ -361,7 +361,7 @@ export async function importPlaylist(
           // Phase 2: Insert into playlist sequentially in globalIndex order
           const sortedResults = downloadResults.sort((a, b) => a.globalIndex - b.globalIndex);
           for (const { musicId, globalIndex } of sortedResults) {
-            await playlistService.insertMusicToPlaylist(newPlaylist.id, musicId, globalIndex);
+            playlistService.insertMusicToPlaylist(newPlaylist.id, musicId, globalIndex);
 
             // Report progress using globalIndex (thread-safe, no race conditions)
             onProgress?.({
