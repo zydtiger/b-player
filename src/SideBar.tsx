@@ -13,7 +13,7 @@ import PlaylistThumbnailGrid from "./components/PlaylistThumbnailGrid";
 /**
  * System playlists with SVG icons
  */
-const SYSTEM_PLAYLISTS = [
+export const SYSTEM_PLAYLISTS = [
   { id: "library", name: "Library", icon: <HomeIcon /> },
   { id: "recently-added", name: "Recently Added", icon: <RecentlyAddedIcon /> },
   { id: "recently-played", name: "Recently Played", icon: <RecentlyPlayedIcon /> },
@@ -73,7 +73,9 @@ const TabItem: React.FC<TabItemProps> = ({ icon, title, active, collapsed = fals
       }}
     >
       {/* Icon - centered when collapsed */}
-      <div className={`shrink-0 ${collapsed ? "mx-auto" : !collapsed ? "mr-3" : ""}`}>{renderIcon()}</div>
+      <div className={`shrink-0 ${collapsed ? "mx-auto" : !collapsed ? "mr-3" : ""}`}>
+        {renderIcon()}
+      </div>
 
       {/* Title - hidden when collapsed */}
       {!collapsed && <span className="font-medium truncate grow">{title}</span>}
@@ -98,9 +100,13 @@ const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, cl
 
       // Fetch playlist music data in parallel
       const results = await Promise.allSettled(
-        playlists.map((playlist) =>
-          window.ipcRenderer.invoke("getPlaylistWithMusic", playlist.id) as Promise<PlaylistWithMusic>
-        )
+        playlists.map(
+          (playlist) =>
+            window.ipcRenderer.invoke(
+              "getPlaylistWithMusic",
+              playlist.id,
+            ) as Promise<PlaylistWithMusic>,
+        ),
       );
 
       // Extract thumbnail hashes from results
@@ -162,21 +168,23 @@ const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, cl
         )}
 
         {/* User Playlists - only show pinned */}
-        {playlists.filter((playlist) => playlist.isPinned).map((playlist) => (
-          <TabItem
-            key={playlist.id}
-            icon={
-              <PlaylistThumbnailGrid
-                thumbnails={playlistThumbnails.get(playlist.id) ?? []}
-                collapsed={collapsed}
-              />
-            }
-            title={playlist.name}
-            active={activePlaylist === playlist.name}
-            collapsed={collapsed}
-            onClick={() => handlePlaylistClick(playlist.name)}
-          />
-        ))}
+        {playlists
+          .filter((playlist) => playlist.isPinned)
+          .map((playlist) => (
+            <TabItem
+              key={playlist.id}
+              icon={
+                <PlaylistThumbnailGrid
+                  thumbnails={playlistThumbnails.get(playlist.id) ?? []}
+                  collapsed={collapsed}
+                />
+              }
+              title={playlist.name}
+              active={activePlaylist === playlist.name}
+              collapsed={collapsed}
+              onClick={() => handlePlaylistClick(playlist.name)}
+            />
+          ))}
       </div>
     </div>
   );
