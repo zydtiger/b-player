@@ -3,7 +3,7 @@ import fs from "node:fs";
 
 import Database from "better-sqlite3";
 
-import { getStorageDir } from "./utils";
+import { getStorageDir, getMusicDir } from "./utils";
 import {
   MusicPiece,
   MusicPieceSchema,
@@ -243,9 +243,9 @@ export class MusicService {
   deleteMusicPiece(musicId: number): void {
     if (!db) throw new Error("Database not initialized");
 
-    // Get music piece to update playlists
+    // Get music piece to update playlists and retrieve hash for file deletion
     const musicStmt = db.prepare("SELECT * FROM music_pieces WHERE id = ?");
-    const musicPiece = musicStmt.get(musicId) as { duration: number } | undefined;
+    const musicPiece = musicStmt.get(musicId) as MusicPiece | undefined;
 
     if (!musicPiece) {
       throw new Error(`Music piece with ID ${musicId} not found`);
@@ -290,6 +290,13 @@ export class MusicService {
     `,
     );
     deleteMusicStmt.run(musicId);
+
+    // Delete the actual audio directory using hash
+    const musicDir = getMusicDir(musicPiece.hash);
+    fs.promises.rm(musicDir, { recursive: true, force: true }).catch((err) => {
+      // Log error but don't throw - database record is already deleted
+      console.error(`Failed to delete music directory ${musicDir}:`, err);
+    });
   }
 }
 
