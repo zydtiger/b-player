@@ -1,6 +1,7 @@
-import React from "react";
-import { PlaylistWithMusic } from "@@/shared/model";
+import React, { useState } from "react";
+import { Playlist, PlaylistWithMusic } from "@@/shared/model";
 import PlaylistThumbnailGrid from "./PlaylistThumbnailGrid";
+import PlaylistOptions from "./PlaylistOptions";
 
 interface PlaylistListItemProps {
   /** Playlist with music data to display */
@@ -9,6 +10,8 @@ interface PlaylistListItemProps {
   onClick: (playlist: PlaylistWithMusic) => void;
   /** Whether the item is selected/active */
   active?: boolean;
+  /** Context menu handler */
+  onContextMenu?: (event: React.MouseEvent) => void;
 }
 
 interface PlaylistListProps {
@@ -53,7 +56,7 @@ const extractThumbnailUrls = (playlist: PlaylistWithMusic): string[] => {
  * Individual list item displaying playlist thumbnail and information.
  */
 const PlaylistListItem: React.FC<PlaylistListItemProps> = React.memo(
-  ({ playlist, onClick, active }) => {
+  ({ playlist, onClick, active, onContextMenu }) => {
     const handleClick = () => {
       onClick(playlist);
     };
@@ -66,6 +69,7 @@ const PlaylistListItem: React.FC<PlaylistListItemProps> = React.memo(
           active ? "bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500" : ""
         }`}
         onClick={handleClick}
+        onContextMenu={onContextMenu}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
@@ -116,6 +120,22 @@ const PlaylistList: React.FC<PlaylistListProps> = ({
   selectedPlaylistId,
   className = "",
 }) => {
+  // State for playlist options menu
+  const [optionsPlaylist, setOptionsPlaylist] = useState<Playlist | null>(null);
+  const [optionsPosition, setOptionsPosition] = useState<{ x: number; y: number } | null>(null);
+
+  const handlePlaylistContextMenu = (event: React.MouseEvent, playlist: Playlist) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setOptionsPlaylist(playlist);
+    setOptionsPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const closeOptions = () => {
+    setOptionsPlaylist(null);
+    setOptionsPosition(null);
+  };
+
   return (
     <>
       <div className={`divide-y divide-gray-200 dark:divide-gray-700 ${className}`}>
@@ -125,9 +145,18 @@ const PlaylistList: React.FC<PlaylistListProps> = ({
             playlist={playlist}
             onClick={onPlaylistClick}
             active={selectedPlaylistId === playlist.id}
+            onContextMenu={(e) => handlePlaylistContextMenu(e, playlist)}
           />
         ))}
       </div>
+
+      {optionsPlaylist && optionsPosition && (
+        <PlaylistOptions
+          playlist={optionsPlaylist}
+          position={optionsPosition}
+          onClose={closeOptions}
+        />
+      )}
     </>
   );
 };

@@ -1,6 +1,7 @@
-import React from "react";
-import { PlaylistWithMusic } from "@@/shared/model";
+import React, { useState } from "react";
+import { Playlist, PlaylistWithMusic } from "@@/shared/model";
 import PlaylistThumbnailGrid from "./PlaylistThumbnailGrid";
+import PlaylistOptions from "./PlaylistOptions";
 
 interface PlaylistGridItemProps {
   /** Playlist with music data to display */
@@ -9,6 +10,8 @@ interface PlaylistGridItemProps {
   onClick: (playlist: PlaylistWithMusic) => void;
   /** Whether the item is selected/active */
   active?: boolean;
+  /** Context menu handler */
+  onContextMenu?: (event: React.MouseEvent) => void;
 }
 
 interface PlaylistGridProps {
@@ -53,7 +56,7 @@ const extractThumbnailUrls = (playlist: PlaylistWithMusic): string[] => {
  * Individual grid item displaying playlist thumbnail and information.
  */
 const PlaylistGridItem: React.FC<PlaylistGridItemProps> = React.memo(
-  ({ playlist, onClick, active }) => {
+  ({ playlist, onClick, active, onContextMenu }) => {
     const handleClick = () => {
       onClick(playlist);
     };
@@ -66,6 +69,7 @@ const PlaylistGridItem: React.FC<PlaylistGridItemProps> = React.memo(
           active ? "ring-2 ring-blue-500" : ""
         }`}
         onClick={handleClick}
+        onContextMenu={onContextMenu}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
@@ -109,19 +113,46 @@ const PlaylistGrid: React.FC<PlaylistGridProps> = ({
   selectedPlaylistId,
   className = "",
 }) => {
+  // State for playlist options menu
+  const [optionsPlaylist, setOptionsPlaylist] = useState<Playlist | null>(null);
+  const [optionsPosition, setOptionsPosition] = useState<{ x: number; y: number } | null>(null);
+
+  const handlePlaylistContextMenu = (event: React.MouseEvent, playlist: Playlist) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setOptionsPlaylist(playlist);
+    setOptionsPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const closeOptions = () => {
+    setOptionsPlaylist(null);
+    setOptionsPosition(null);
+  };
+
   return (
-    <div
-      className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 ${className}`}
-    >
-      {playlists.map((playlist) => (
-        <PlaylistGridItem
-          key={playlist.id}
-          playlist={playlist}
-          onClick={onPlaylistClick}
-          active={selectedPlaylistId === playlist.id}
+    <>
+      <div
+        className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 ${className}`}
+      >
+        {playlists.map((playlist) => (
+          <PlaylistGridItem
+            key={playlist.id}
+            playlist={playlist}
+            onClick={onPlaylistClick}
+            active={selectedPlaylistId === playlist.id}
+            onContextMenu={(e) => handlePlaylistContextMenu(e, playlist)}
+          />
+        ))}
+      </div>
+
+      {optionsPlaylist && optionsPosition && (
+        <PlaylistOptions
+          playlist={optionsPlaylist}
+          position={optionsPosition}
+          onClose={closeOptions}
         />
-      ))}
-    </div>
+      )}
+    </>
   );
 };
 

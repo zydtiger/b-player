@@ -577,6 +577,75 @@ export class PlaylistService {
     );
     reorderStmt.run(playlistId, junctionRow.position);
   }
+
+  /**
+   * Update a playlist's name and/or description
+   *
+   * @param playlistId The playlist ID to update
+   * @param updates Object containing fields to update (name, description)
+   * @returns The updated playlist
+   * @throws Error if playlist not found or validation fails
+   */
+  updatePlaylist(
+    playlistId: number,
+    updates: Partial<Pick<Playlist, "name" | "description">>,
+  ): Playlist {
+    // Build the update query dynamically based on provided fields
+    const fields: string[] = [];
+    const values: (string | null)[] = [];
+
+    if (updates.name !== undefined) {
+      fields.push("name = ?");
+      values.push(updates.name);
+    }
+
+    if (updates.description !== undefined) {
+      fields.push("description = ?");
+      values.push(updates.description);
+    }
+
+    if (fields.length === 0) {
+      throw new Error("No fields to update");
+    }
+
+    const stmt = this.db.prepare(
+      `UPDATE playlists SET ${fields.join(", ")} WHERE id = ?`,
+    );
+
+    const result = stmt.run(...values, playlistId);
+
+    if (result.changes === 0) {
+      throw new Error(`Playlist with ID ${playlistId} not found`);
+    }
+
+    return this.getPlaylistById(playlistId);
+  }
+
+  /**
+   * Delete a playlist from the database
+   *
+   * @param playlistId The playlist ID to delete
+   * @throws Error if playlist not found
+   */
+  deletePlaylist(playlistId: number): void {
+    // Get playlist to verify existence
+    const stmt = this.db.prepare("SELECT * FROM playlists WHERE id = ?");
+    const playlist = stmt.get(playlistId) as Playlist | undefined;
+
+    if (!playlist) {
+      throw new Error(`Playlist with ID ${playlistId} not found`);
+    }
+
+    // Delete all junction records first (CASCADE will handle this, but explicit is clearer)
+    const deleteJunctionStmt = this.db.prepare(
+      "DELETE FROM playlist_music WHERE playlistId = ?",
+    );
+    deleteJunctionStmt.run(playlistId);
+
+    // Delete the playlist
+    const deleteStmt = this.db.prepare("DELETE FROM playlists WHERE id = ?");
+    deleteStmt.run(playlistId);
+  }
 }
 
 // Export singleton instance

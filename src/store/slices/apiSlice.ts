@@ -66,6 +66,28 @@ export const apiSlice = createApi({
       query: (url) => ({ channel: "importPlaylist", args: [url] }),
       invalidatesTags: ["Playlist", "PlaylistWithMusic"],
     }),
+
+    updatePlaylist: builder.mutation<
+      Playlist,
+      { playlistId: number; updates: Partial<Pick<Playlist, "name" | "description">> }
+    >({
+      query: ({ playlistId, updates }) => ({
+        channel: "updatePlaylist",
+        args: [playlistId, updates],
+      }),
+      invalidatesTags: (_result, _error, { playlistId }) => [
+        "Playlist",
+        { type: "PlaylistWithMusic", id: playlistId },
+      ],
+    }),
+
+    deletePlaylist: builder.mutation<void, number>({
+      query: (playlistId) => ({
+        channel: "deletePlaylist",
+        args: [playlistId],
+      }),
+      invalidatesTags: ["Playlist", "PlaylistWithMusic"],
+    }),
   }),
 });
 
@@ -77,4 +99,6 @@ export const {
   useRemoveMusicFromPlaylistMutation,
   useImportMusicMutation,
   useImportPlaylistMutation,
+  useUpdatePlaylistMutation,
+  useDeletePlaylistMutation,
 } = apiSlice;

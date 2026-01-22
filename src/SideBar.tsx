@@ -9,6 +9,7 @@ import {
   PlaylistsIcon,
 } from "./components/icons/SystemPlaylistIcons";
 import PlaylistThumbnailGrid from "./components/PlaylistThumbnailGrid";
+import PlaylistOptions from "./components/PlaylistOptions";
 
 /**
  * System playlists with SVG icons
@@ -40,12 +41,21 @@ interface TabItemProps {
   collapsed?: boolean;
   /** Click handler */
   onClick?: () => void;
+  /** Context menu handler */
+  onContextMenu?: (event: React.MouseEvent) => void;
 }
 
 /**
  * Individual sidebar tab item with icon and text
  */
-const TabItem: React.FC<TabItemProps> = ({ icon, title, active, collapsed = false, onClick }) => {
+const TabItem: React.FC<TabItemProps> = ({
+  icon,
+  title,
+  active,
+  collapsed = false,
+  onClick,
+  onContextMenu,
+}) => {
   const renderIcon = () => {
     if (typeof icon === "string") {
       // Render emoji or character as icon
@@ -63,6 +73,7 @@ const TabItem: React.FC<TabItemProps> = ({ icon, title, active, collapsed = fals
           : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
       }`}
       onClick={onClick}
+      onContextMenu={onContextMenu}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -92,6 +103,10 @@ const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, cl
 
   // State for playlist thumbnails (Map of playlistId -> array of thumbnail URLs)
   const [playlistThumbnails, setPlaylistThumbnails] = useState<Map<number, string[]>>(new Map());
+
+  // State for playlist options menu
+  const [optionsPlaylist, setOptionsPlaylist] = useState<Playlist | null>(null);
+  const [optionsPosition, setOptionsPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Fetch thumbnails for all playlists
   useEffect(() => {
@@ -132,6 +147,18 @@ const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, cl
 
   const handlePlaylistClick = (playlistName: string) => {
     dispatch(setActivePlaylist(playlistName));
+  };
+
+  const handlePlaylistContextMenu = (event: React.MouseEvent, playlist: Playlist) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setOptionsPlaylist(playlist);
+    setOptionsPosition({ x: event.clientX, y: event.clientY });
+  };
+
+  const closeOptions = () => {
+    setOptionsPlaylist(null);
+    setOptionsPosition(null);
   };
 
   return (
@@ -183,9 +210,19 @@ const SideBar: React.FC<SideBarProps> = ({ playlists = [], collapsed = false, cl
               active={activePlaylist === playlist.name}
               collapsed={collapsed}
               onClick={() => handlePlaylistClick(playlist.name)}
+              onContextMenu={(e) => handlePlaylistContextMenu(e, playlist)}
             />
           ))}
       </div>
+
+      {/* Playlist Options Menu */}
+      {optionsPlaylist && optionsPosition && (
+        <PlaylistOptions
+          playlist={optionsPlaylist}
+          position={optionsPosition}
+          onClose={closeOptions}
+        />
+      )}
     </div>
   );
 };

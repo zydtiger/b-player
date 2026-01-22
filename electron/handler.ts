@@ -178,4 +178,33 @@ export function initializeIpcMainHandlers(): void {
     const playlistService = new PlaylistService(databaseManager.getDatabase());
     playlistService.removeMusicFromPlaylist(playlistId, musicId);
   });
+
+  /**
+   * Handler for updating a playlist.
+   *
+   * @param playlistId The playlist ID
+   * @param updates Object containing fields to update (name, description)
+   * @returns Promise<Playlist> The updated playlist
+   * @throws Error if playlist not found or validation fails
+   */
+  ipcMain.handle(
+    "updatePlaylist",
+    (_event, playlistId: number, updates: Partial<{ name: string; description: string }>): Playlist => {
+      const playlistService = new PlaylistService(databaseManager.getDatabase());
+      return playlistService.updatePlaylist(playlistId, updates);
+    },
+  );
+
+  /**
+   * Handler for deleting a playlist.
+   * Removes the playlist and all associated junction records.
+   *
+   * @param playlistId The playlist ID to delete
+   * @returns Promise<void>
+   * @throws Error if playlist not found
+   */
+  ipcMain.handle("deletePlaylist", (_event, playlistId: number): void => {
+    const playlistService = new PlaylistService(databaseManager.getDatabase());
+    playlistService.deletePlaylist(playlistId);
+  });
 }
