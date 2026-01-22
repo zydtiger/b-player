@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import Dialog from "./components/Dialog";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
-import { setLoading, setViewMode } from "./store/slices/musicPlayer";
-import { MusicPiece, Playlist } from "@@/shared/model";
+import { setViewMode, setLoading } from "./store/slices/musicPlayer";
+import { useImportMusicMutation, useImportPlaylistMutation } from "./store/slices/apiSlice";
 
 interface TopBarProps {
   /** Whether the sidebar is collapsed */
@@ -17,17 +17,17 @@ interface TopBarProps {
 const TopBar: React.FC<TopBarProps> = ({ isSideBarCollapsed, onToggleSidebar }) => {
   const dispatch = useAppDispatch();
   const viewMode = useAppSelector((state) => state.musicPlayer.viewMode);
+  const [importMusic] = useImportMusicMutation();
+  const [importPlaylist] = useImportPlaylistMutation();
   const [isMusicImportOpen, setIsMusicImportOpen] = useState(false);
   const [isPlaylistImportOpen, setIsPlaylistImportOpen] = useState(false);
 
   const handleMusicImport = async (url: string) => {
     try {
       dispatch(setLoading({ isLoading: true, message: "Importing music..." }));
-      const musicPiece = (await window.ipcRenderer.invoke("importMusic", url)) as MusicPiece;
-      console.log("Music imported successfully:", musicPiece);
+      await importMusic(url).unwrap();
+      console.log("Music imported successfully");
       setIsMusicImportOpen(false);
-      // Reload the page to refresh the music list
-      window.location.reload();
     } catch (error) {
       console.error("Failed to import music:", error);
       alert(`Failed to import music: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -39,11 +39,9 @@ const TopBar: React.FC<TopBarProps> = ({ isSideBarCollapsed, onToggleSidebar }) 
   const handlePlaylistImport = async (url: string) => {
     try {
       dispatch(setLoading({ isLoading: true, message: "Importing playlist..." }));
-      const playlist = (await window.ipcRenderer.invoke("importPlaylist", url)) as Playlist;
-      console.log("Playlist imported successfully:", playlist);
+      await importPlaylist(url).unwrap();
+      console.log("Playlist imported successfully");
       setIsPlaylistImportOpen(false);
-      // Reload the page to refresh the playlist list
-      window.location.reload();
     } catch (error) {
       console.error("Failed to import playlist:", error);
       alert(

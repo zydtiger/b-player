@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { MusicPiece, Playlist, PlaylistWithMusic } from "../shared/model";
+import { useEffect, useState } from "react";
+import { MusicPiece, PlaylistWithMusic } from "../shared/model";
 import PlaylistGrid from "./components/PlaylistGrid";
 import PlaylistList from "./components/PlaylistList";
 import LoadingOverlay from "./components/LoadingOverlay";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { setQueue, jumpToIndex, setIsPlaying, setLoading } from "./store/slices/musicPlayer";
+import { useGetAllMusicPiecesQuery, useGetAllPlaylistsQuery } from "./store/slices/apiSlice";
 import PlayBar from "./PlayBar";
 import SideBar from "./SideBar";
 import TopBar from "./TopBar";
@@ -12,65 +13,40 @@ import GroupedView from "./views/GroupedView";
 import BasicView from "./views/BasicView";
 
 function App() {
-  const {
-    isLoading,
-    loadingMessage,
-    loadingProgress,
-    activePlaylist,
-    viewMode,
-    queue,
-    queueSourcePlaylist,
-  } = useAppSelector((state) => ({
-    isLoading: state.musicPlayer.isLoading,
-    loadingMessage: state.musicPlayer.loadingMessage,
-    loadingProgress: state.musicPlayer.loadingProgress,
+  const dispatch = useAppDispatch();
+  const { activePlaylist, viewMode, queue, queueSourcePlaylist, isLoading, loadingMessage, loadingProgress } = useAppSelector((state) => ({
     activePlaylist: state.musicPlayer.activePlaylist,
     viewMode: state.musicPlayer.viewMode,
     queue: state.musicPlayer.queue,
     queueSourcePlaylist: state.musicPlayer.queueSourcePlaylist,
+    // Loading state only for import operations (from musicPlayerSlice)
+    isLoading: state.musicPlayer.isLoading,
+    loadingMessage: state.musicPlayer.loadingMessage,
+    loadingProgress: state.musicPlayer.loadingProgress,
   }));
-  const dispatch = useAppDispatch();
-  const [musicPieces, setMusicPieces] = useState<MusicPiece[]>([]);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [playlistsWithMusic, setPlaylistsWithMusic] = useState<PlaylistWithMusic[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [isSideBarCollapsed, setIsSideBarCollapsed] = useState(false);
+  const [playlistsWithMusic, setPlaylistsWithMusic] = useState<PlaylistWithMusic[]>([]);
 
+  // RTK Query hooks for data fetching (fast, no loading state shown)
+  const { data: musicPieces = [] } = useGetAllMusicPiecesQuery();
+  const { data: playlists = [] } = useGetAllPlaylistsQuery();
+
+  // Fetch playlist with music data when playlists change
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        dispatch(setLoading({ isLoading: true }));
-        const [pieces, playlistData] = await Promise.all([
-          window.ipcRenderer.invoke("getAllMusicPieces") as Promise<MusicPiece[]>,
-          window.ipcRenderer.invoke("getAllPlaylists") as Promise<Playlist[]>,
-        ]);
-        setMusicPieces(pieces);
-        setPlaylists(playlistData);
-        console.log("Music pieces:", pieces);
-        console.log("Playlists:", playlistData);
-
-        // Fetch full playlist data with music pieces
-        const playlistsWithMusicData = await Promise.all(
-          playlistData.map(
-            (playlist) =>
-              window.ipcRenderer.invoke(
-                "getPlaylistWithMusic",
-                playlist.id,
-              ) as Promise<PlaylistWithMusic>,
-          ),
-        );
-        setPlaylistsWithMusic(playlistsWithMusicData);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load data");
-        console.error("Error loading data:", err);
-      } finally {
-        dispatch(setLoading({ isLoading: false }));
-      }
+    const fetchPlaylistsWithMusic = async () => {
+      const data = await Promise.all(
+        playlists.map((p) => window.ipcRenderer.invoke("getPlaylistWithMusic", p.id)),
+      );
+      setPlaylistsWithMusic(data);
     };
 
-    loadData();
+    if (playlists.length > 0) {
+      fetchPlaylistsWithMusic();
+    }
+  }, [playlists]);
 
-    // Listen for import progress events from main process
+  // Listen for import progress events from main process (slow operations with progress)
+  useEffect(() => {
     const handleImportProgress = (
       _event: unknown,
       progress: { stage: string; progress: number; message?: string },
@@ -124,14 +100,6 @@ function App() {
     // Navigate to individual playlist view (future enhancement)
     console.log("Playlist clicked:", playlist.name);
   };
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-red-600">Error: {error}</div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-screen">

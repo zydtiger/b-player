@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { MusicPiece } from "@@/shared/model";
 import { useAppSelector } from "../store/hooks";
+import { useDeleteMusicPieceMutation, useRemoveMusicFromPlaylistMutation } from "../store/slices/apiSlice";
 import Dialog from "./Dialog";
 import { SYSTEM_PLAYLISTS } from "../SideBar";
 
@@ -19,6 +20,8 @@ interface MusicOptionsProps {
  */
 const MusicOptions: React.FC<MusicOptionsProps> = ({ music, position, onClose }) => {
   const activePlaylist = useAppSelector((state) => state.musicPlayer.activePlaylist);
+  const [deleteMusicPiece] = useDeleteMusicPieceMutation();
+  const [removeMusicFromPlaylist] = useRemoveMusicFromPlaylistMutation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -50,16 +53,15 @@ const MusicOptions: React.FC<MusicOptionsProps> = ({ music, position, onClose })
    */
   const confirmDelete = async () => {
     try {
-      // Check if we're in a system playlist or a user playlist
       const isSystemPlaylist = SYSTEM_PLAYLISTS.some((sp) => sp.name === activePlaylist);
 
       if (isSystemPlaylist) {
-        // Delete the music piece from database completely
-        await window.ipcRenderer.invoke("deleteMusicPiece", music.id);
+        // Delete the music piece completely - RTK Query auto-refetches
+        await deleteMusicPiece(music.id).unwrap();
       } else {
         // Get the current playlist and remove music from that playlist only
         const playlist = await window.ipcRenderer.invoke("getPlaylistByName", activePlaylist);
-        await window.ipcRenderer.invoke("removeMusicFromPlaylist", playlist.id, music.id);
+        await removeMusicFromPlaylist({ playlistId: playlist.id, musicId: music.id }).unwrap();
       }
 
       setIsDeleteDialogOpen(false);
