@@ -2,16 +2,20 @@ import React, { useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { setIsPlaying, playNext, playPrev } from "./store/slices/musicPlayer";
 
-const PlayBar: React.FC = () => {
+interface PlayBarProps {
+  audioRef: React.RefObject<HTMLAudioElement>;
+  volume: number;
+  onVolumeChange: (volume: number) => void;
+}
+
+const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) => {
   const dispatch = useAppDispatch();
   const { queue, currentIndex, isPlaying } = useAppSelector((state) => state.musicPlayer);
   const currentMusic = queue[currentIndex];
-  const audioRef = useRef<HTMLAudioElement>(null);
   const audioReadyRef = useRef(false);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
 
   // Reset audio ready state when track changes
   useEffect(() => {
@@ -33,14 +37,10 @@ const PlayBar: React.FC = () => {
     } else if (!isPlaying && !audioElem.paused) {
       audioElem.pause();
     }
-  }, [isPlaying, dispatch]);
+  }, [isPlaying, dispatch, audioRef]);
 
-  // Handle volume change
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
-    }
-  }, [volume]);
+  // Handle volume change (now managed by parent component)
+  // Volume state is lifted to App.tsx for global keyboard control
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
@@ -90,22 +90,7 @@ const PlayBar: React.FC = () => {
   }
 
   return (
-    <div
-      className="fixed bottom-0 left-0 w-full h-20 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-indigo-500"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === " ") {
-          e.preventDefault();
-          handleTogglePlay();
-        } else if (e.key === "ArrowUp") {
-          e.preventDefault();
-          setVolume((prev) => Math.min(1, prev + 0.1));
-        } else if (e.key === "ArrowDown") {
-          e.preventDefault();
-          setVolume((prev) => Math.max(0, prev - 0.1));
-        }
-      }}
-    >
+    <div className="fixed bottom-0 left-0 w-full h-20 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-40">
       <audio
         ref={audioRef}
         src={`audio://${currentMusic.hash}`}
@@ -266,7 +251,7 @@ const PlayBar: React.FC = () => {
           max="1"
           step="0.01"
           value={volume}
-          onChange={(e) => setVolume(parseFloat(e.target.value))}
+          onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
           className="w-24 h-1 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:hover:bg-gray-700 dark:[&::-webkit-slider-thumb]:bg-gray-400 dark:[&::-webkit-slider-thumb]:hover:bg-gray-200"
         />
       </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { MusicPiece, PlaylistWithMusic } from "../shared/model";
 import PlaylistGrid from "./components/PlaylistGrid";
 import PlaylistList from "./components/PlaylistList";
@@ -14,11 +14,12 @@ import BasicView from "./views/BasicView";
 
 function App() {
   const dispatch = useAppDispatch();
-  const { activePlaylist, viewMode, queue, queueSourcePlaylist, isLoading, loadingMessage, loadingProgress } = useAppSelector((state) => ({
+  const { activePlaylist, viewMode, queue, queueSourcePlaylist, isLoading, loadingMessage, loadingProgress, isPlaying } = useAppSelector((state) => ({
     activePlaylist: state.musicPlayer.activePlaylist,
     viewMode: state.musicPlayer.viewMode,
     queue: state.musicPlayer.queue,
     queueSourcePlaylist: state.musicPlayer.queueSourcePlaylist,
+    isPlaying: state.musicPlayer.isPlaying,
     // Loading state only for import operations (from musicPlayerSlice)
     isLoading: state.musicPlayer.isLoading,
     loadingMessage: state.musicPlayer.loadingMessage,
@@ -26,6 +27,8 @@ function App() {
   }));
   const [isSideBarCollapsed, setIsSideBarCollapsed] = useState(false);
   const [playlistsWithMusic, setPlaylistsWithMusic] = useState<PlaylistWithMusic[]>([]);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [volume, setVolume] = useState(1);
 
   // RTK Query hooks for data fetching (fast, no loading state shown)
   const { data: musicPieces = [] } = useGetAllMusicPiecesQuery();
@@ -66,6 +69,40 @@ function App() {
       window.ipcRenderer.off("import-progress", handleImportProgress);
     };
   }, [dispatch]);
+
+  // Sync volume state to audio element
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  // Global keyboard handler for media controls
+  useEffect(() => {
+    const handleGlobalKeyPress = (e: KeyboardEvent) => {
+      // Ignore if typing in an input or textarea
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      if (e.key === " ") {
+        e.preventDefault();
+        dispatch(setIsPlaying(!isPlaying));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setVolume((prev) => Math.min(1, prev + 0.1));
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setVolume((prev) => Math.max(0, prev - 0.1));
+      }
+    };
+
+    window.addEventListener("keydown", handleGlobalKeyPress);
+    return () => window.removeEventListener("keydown", handleGlobalKeyPress);
+  }, [isPlaying, dispatch]);
 
   const handleMusicClick = (musicPiece: MusicPiece) => {
     // Derive queue based on activePlaylist
@@ -157,7 +194,7 @@ function App() {
         </div>
 
         {/* PlayBar */}
-        <PlayBar />
+        <PlayBar audioRef={audioRef} volume={volume} onVolumeChange={setVolume} />
       </div>
 
       {/* Global Loading Overlay */}
