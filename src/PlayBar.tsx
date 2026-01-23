@@ -121,10 +121,16 @@ const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) =
           />
         </div>
         <div className="overflow-hidden">
-          <div className="font-medium text-gray-900 dark:text-white truncate">
+          <div
+            className="font-medium text-gray-900 dark:text-white truncate"
+            title={currentMusic.name}
+          >
             {currentMusic.name}
           </div>
-          <div className="text-sm text-gray-500 dark:text-gray-400 truncate">
+          <div
+            className="text-sm text-gray-500 dark:text-gray-400 truncate"
+            title={currentMusic.author}
+          >
             {currentMusic.author}
           </div>
         </div>
