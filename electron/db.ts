@@ -608,9 +608,7 @@ export class PlaylistService {
       throw new Error("No fields to update");
     }
 
-    const stmt = this.db.prepare(
-      `UPDATE playlists SET ${fields.join(", ")} WHERE id = ?`,
-    );
+    const stmt = this.db.prepare(`UPDATE playlists SET ${fields.join(", ")} WHERE id = ?`);
 
     const result = stmt.run(...values, playlistId);
 
@@ -637,9 +635,7 @@ export class PlaylistService {
     }
 
     // Delete all junction records first (CASCADE will handle this, but explicit is clearer)
-    const deleteJunctionStmt = this.db.prepare(
-      "DELETE FROM playlist_music WHERE playlistId = ?",
-    );
+    const deleteJunctionStmt = this.db.prepare("DELETE FROM playlist_music WHERE playlistId = ?");
     deleteJunctionStmt.run(playlistId);
 
     // Delete the playlist
