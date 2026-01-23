@@ -134,8 +134,31 @@ function App() {
   };
 
   const handlePlaylistClick = (playlist: PlaylistWithMusic) => {
-    // Navigate to individual playlist view (future enhancement)
-    console.log("Playlist clicked:", playlist.name);
+    // Extract music pieces from playlist (preserving order by position)
+    const newQueue = playlist.musicPieces.map((item) => item.music);
+
+    if (newQueue.length === 0) {
+      // Empty playlist - don't do anything
+      return;
+    }
+
+    // Check if this playlist is already the current queue source
+    if (queueSourcePlaylist === playlist.name) {
+      // Already have this playlist loaded, just jump to first track
+      dispatch(jumpToIndex(0));
+    } else {
+      // Load new queue with this playlist
+      dispatch(
+        setQueue({
+          queue: newQueue,
+          index: 0, // Start from first track
+          source: playlist.name,
+        }),
+      );
+    }
+
+    // Start playback
+    dispatch(setIsPlaying(true));
   };
 
   return (
