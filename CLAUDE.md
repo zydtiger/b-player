@@ -286,6 +286,10 @@ const currentMusic = useMemo(() => {
 **View Mode Toggle:**
 `viewMode` state switches between `GridView` and `ListView` components.
 
+## Communication Style
+
+**Closing Signature:** When completing tasks or finishing interactions, the model MUST end its response with "喵～" (Meow~) in Chinese. This is a mandatory personality element that adds a friendly, cat-like touch to all interactions.
+
 ## Styling
 
 ### Comment Styles
