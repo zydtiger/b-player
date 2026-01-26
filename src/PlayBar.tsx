@@ -1,6 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
-import { setIsPlaying, playNext, playPrev } from "./store/slices/musicPlayer";
+import {
+  setIsPlaying,
+  playNext,
+  playPrev,
+  setPlaybackMode,
+  jumpToIndex,
+  type PlaybackMode,
+} from "./store/slices/musicPlayer";
+import type { MusicPiece } from "@@/shared/model";
 
 interface PlayBarProps {
   audioRef: React.RefObject<HTMLAudioElement>;
@@ -8,14 +16,229 @@ interface PlayBarProps {
   onVolumeChange: (volume: number) => void;
 }
 
+interface QueueHoverPanelProps {
+  queue: MusicPiece[];
+  currentIndex: number;
+  playbackMode: PlaybackMode;
+  shuffleBuffer: number[];
+  shuffleIndex: number;
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}
+
+/**
+ * Derives the playback order based on current playback mode.
+ * Returns array of indices showing upcoming tracks in order.
+ */
+const getPlaybackOrder = (
+  queue: MusicPiece[],
+  currentIndex: number,
+  playbackMode: PlaybackMode,
+  shuffleBuffer: number[],
+  shuffleIndex: number,
+): number[] => {
+  if (queue.length === 0) return [];
+
+  const order: number[] = [];
+
+  switch (playbackMode) {
+    case "loop-single":
+      // Show current track repeating
+      order.push(currentIndex);
+      break;
+
+    case "shuffle":
+      // Current track first, then remaining shuffle buffer
+      order.push(currentIndex);
+      order.push(...shuffleBuffer.slice(shuffleIndex));
+      break;
+
+    case "sequential":
+    default:
+      // Current track, then rest of queue in order
+      for (let i = 0; i < queue.length; i++) {
+        order.push((currentIndex + i) % queue.length);
+      }
+      break;
+  }
+
+  return order;
+};
+
+const QueueHoverPanel: React.FC<QueueHoverPanelProps> = ({
+  queue,
+  currentIndex,
+  playbackMode,
+  shuffleBuffer,
+  shuffleIndex,
+  onMouseEnter,
+  onMouseLeave,
+}) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const dispatch = useAppDispatch();
+
+  const handleJumpToTrack = (originalIndex: number) => {
+    dispatch(jumpToIndex(originalIndex));
+    dispatch(setIsPlaying(true));
+  };
+
+  // Calculate position - show above the PlayBar, aligned right
+  const calculatePosition = () => {
+    const panelWidth = 400;
+    const panelMaxHeight = 400;
+    const padding = 8;
+    const playBarHeight = 80; // From PlayBar className
+
+    // Position above the PlayBar, aligned to right edge
+    return {
+      x: Math.max(padding, window.innerWidth - panelWidth - padding),
+      y: Math.max(padding, window.innerHeight - playBarHeight - panelMaxHeight - padding),
+    };
+  };
+
+  const pos = calculatePosition();
+  const playbackOrder = getPlaybackOrder(
+    queue,
+    currentIndex,
+    playbackMode,
+    shuffleBuffer,
+    shuffleIndex,
+  );
+  const formatTime = (time: number) => {
+    if (isNaN(time)) return "0:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  return (
+    <div
+      ref={panelRef}
+      className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+      style={{ left: `${pos.x}px`, top: `${pos.y}px`, width: "400px", maxHeight: "400px" }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+        <h3 className="font-medium text-gray-900 dark:text-white">Queue ({queue.length} tracks)</h3>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          Mode:{" "}
+          {playbackMode === "sequential"
+            ? "Sequential"
+            : playbackMode === "loop-single"
+              ? "Loop Single"
+              : "Shuffle"}
+        </p>
+      </div>
+
+      {/* Track List */}
+      <div className="max-h-80 overflow-y-auto">
+        {playbackOrder.map((queueIndex, displayIndex) => {
+          const track = queue[queueIndex];
+          const isCurrent = queueIndex === currentIndex;
+          return (
+            <button
+              key={queueIndex}
+              onClick={() => handleJumpToTrack(queueIndex)}
+              className={`w-full px-4 py-2.5 flex items-center gap-3 text-left transition-colors ${
+                isCurrent
+                  ? "bg-blue-50 dark:bg-indigo-900/20 text-blue-700 dark:text-indigo-300"
+                  : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+              }`}
+            >
+              {/* Position indicator */}
+              <span
+                className={`w-5 text-sm font-medium ${isCurrent ? "text-blue-600 dark:text-indigo-400" : "text-gray-400"}`}
+              >
+                {isCurrent ? (
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="animate-pulse"
+                  >
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                ) : (
+                  displayIndex + 1
+                )}
+              </span>
+
+              {/* Thumbnail */}
+              <div className="w-10 h-10 rounded bg-gray-200 dark:bg-gray-700 shrink-0 overflow-hidden">
+                <img
+                  src={`thumbnail://${track.hash}`}
+                  alt={track.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </div>
+
+              {/* Track info */}
+              <div className="flex-1 min-w-0">
+                <div
+                  className={`text-sm font-medium truncate ${isCurrent ? "text-blue-700 dark:text-indigo-300" : "text-gray-900 dark:text-white"}`}
+                >
+                  {track.name}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {track.author}
+                </div>
+              </div>
+
+              {/* Duration */}
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                {formatTime(track.duration)}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) => {
   const dispatch = useAppDispatch();
-  const { queue, currentIndex, isPlaying } = useAppSelector((state) => state.musicPlayer);
+  const { queue, currentIndex, isPlaying, playbackMode, shuffleBuffer, shuffleIndex } =
+    useAppSelector((state) => state.musicPlayer);
   const currentMusic = queue[currentIndex];
   const audioReadyRef = useRef(false);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const queueButtonRef = useRef<HTMLButtonElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Clear any pending timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Show queue immediately on hover
+  const handleQueueMouseEnter = useCallback(() => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    setIsQueueOpen(true);
+  }, []);
+
+  // Hide queue with delay when mouse leaves (allows smooth transition to panel)
+  const handleQueueMouseLeave = useCallback(() => {
+    hoverTimeoutRef.current = setTimeout(() => {
+      setIsQueueOpen(false);
+    }, 150); // 150ms delay to prevent flickering
+  }, []);
 
   // Reset audio ready state when track changes
   useEffect(() => {
@@ -58,6 +281,13 @@ const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) =
 
   const handleTogglePlay = () => {
     dispatch(setIsPlaying(!isPlaying));
+  };
+
+  const handleCyclePlaybackMode = () => {
+    const modes: PlaybackMode[] = ["sequential", "loop-single", "shuffle"];
+    const currentModeIndex = modes.indexOf(playbackMode);
+    const nextMode = modes[(currentModeIndex + 1) % modes.length];
+    dispatch(setPlaybackMode(nextMode));
   };
 
   const handlePlayNext = () => {
@@ -236,21 +466,118 @@ const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) =
 
       {/* Right: Volume */}
       <div className="flex items-center justify-end w-1/4 min-w-37.5 gap-2">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="text-gray-500 dark:text-gray-400"
+        {/* Playback Mode Button */}
+        <button
+          onClick={handleCyclePlaybackMode}
+          className="relative p-1.5 rounded transition-colors text-blue-600 dark:text-indigo-400 bg-blue-100 dark:bg-indigo-900/30 hover:bg-blue-200 dark:hover:bg-indigo-900/50"
+          aria-label={`Current mode: ${playbackMode}. Click to cycle.`}
         >
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-        </svg>
+          {playbackMode === "sequential" && (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m17 2 4 3-4 3" />
+              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+              <path d="m7 22-4-3 4-3" />
+              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+            </svg>
+          )}
+          {playbackMode === "loop-single" && (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m17 2 4 3-4 3" />
+              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+              <path d="m7 22-4-3 4-3" />
+              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+              <path d="M10.5 15h4h-2V9L10.8 10" />
+            </svg>
+          )}
+          {playbackMode === "shuffle" && (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M4 6C11 6 11 18 21 18" />
+              <path d="M17 14.5l4 3-4 3" />
+              <path d="M4 18C11 18 11 6 21 6" />
+              <path d="M17 9.5l4-3-4-3" />
+            </svg>
+          )}
+        </button>
+
+        {/* Queue Button */}
+        <button
+          ref={queueButtonRef}
+          onMouseEnter={handleQueueMouseEnter}
+          onMouseLeave={handleQueueMouseLeave}
+          className="relative p-1.5 rounded text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+          aria-label="Show queue"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="8" y1="6" x2="22" y2="6" />
+            <line x1="8" y1="12" x2="22" y2="12" />
+            <line x1="8" y1="18" x2="22" y2="18" />
+            <path d="M4 6h.01" />
+            <path d="M4 12h.01" />
+            <path d="M4 18h.01" />
+          </svg>
+          {queue.length > 0 && (
+            <span className="absolute -top-1 -right-1 bg-blue-600 dark:bg-indigo-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium">
+              {queue.length}
+            </span>
+          )}
+        </button>
+        <div className="p-1.5">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-gray-500 dark:text-gray-400"
+          >
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        </div>
         <input
           type="range"
           min="0"
@@ -258,9 +585,22 @@ const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) =
           step="0.01"
           value={volume}
           onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-          className="w-24 h-1 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:hover:bg-gray-700 dark:[&::-webkit-slider-thumb]:bg-gray-400 dark:[&::-webkit-slider-thumb]:hover:bg-gray-200"
+          className="w-32 h-1 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:hover:bg-gray-700 dark:[&::-webkit-slider-thumb]:bg-gray-400 dark:[&::-webkit-slider-thumb]:hover:bg-gray-200"
         />
       </div>
+
+      {/* Queue Hover Panel */}
+      {isQueueOpen && (
+        <QueueHoverPanel
+          queue={queue}
+          currentIndex={currentIndex}
+          playbackMode={playbackMode}
+          shuffleBuffer={shuffleBuffer}
+          shuffleIndex={shuffleIndex}
+          onMouseEnter={handleQueueMouseEnter}
+          onMouseLeave={handleQueueMouseLeave}
+        />
+      )}
     </div>
   );
 };
