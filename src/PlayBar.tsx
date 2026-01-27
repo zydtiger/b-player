@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import {
   setIsPlaying,
@@ -76,27 +76,40 @@ const QueueHoverPanel: React.FC<QueueHoverPanelProps> = ({
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const dispatch = useAppDispatch();
+  const [panelPosition, setPanelPosition] = useState({ x: 0, y: 0 });
 
   const handleJumpToTrack = (originalIndex: number) => {
     dispatch(jumpToIndex(originalIndex));
     dispatch(setIsPlaying(true));
   };
 
-  // Calculate position - show above the PlayBar, aligned right
-  const calculatePosition = () => {
+  // Calculate position based on actual panel height
+  const updatePosition = useCallback(() => {
+    if (!panelRef.current) return;
+
     const panelWidth = 400;
-    const panelMaxHeight = 400;
     const padding = 8;
+    const panelMargin = 8; // Fixed gap above PlayBar
     const playBarHeight = 80; // From PlayBar className
+    const actualPanelHeight = panelRef.current.offsetHeight;
 
-    // Position above the PlayBar, aligned to right edge
-    return {
+    // Calculate Y position: panel bottom should be panelMargin above PlayBar top
+    let y = window.innerHeight - playBarHeight - panelMargin - actualPanelHeight;
+
+    // Ensure panel stays within viewport (with padding)
+    y = Math.max(padding, y);
+
+    setPanelPosition({
       x: Math.max(padding, window.innerWidth - panelWidth - padding),
-      y: Math.max(padding, window.innerHeight - playBarHeight - panelMaxHeight - padding),
-    };
-  };
+      y,
+    });
+  }, []);
 
-  const pos = calculatePosition();
+  // Update position after panel renders with actual content
+  useLayoutEffect(() => {
+    updatePosition();
+  }, [updatePosition, queue.length, playbackMode]);
+
   const playbackOrder = getPlaybackOrder(
     queue,
     currentIndex,
@@ -115,7 +128,12 @@ const QueueHoverPanel: React.FC<QueueHoverPanelProps> = ({
     <div
       ref={panelRef}
       className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
-      style={{ left: `${pos.x}px`, top: `${pos.y}px`, width: "400px", maxHeight: "400px" }}
+      style={{
+        left: `${panelPosition.x}px`,
+        top: `${panelPosition.y}px`,
+        width: "400px",
+        maxHeight: "400px",
+      }}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
@@ -628,7 +646,7 @@ const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) =
           step="0.01"
           value={volume}
           onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-          className="min-w-[80px] max-w-[100px] h-1 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:hover:bg-gray-700 dark:[&::-webkit-slider-thumb]:bg-gray-400 dark:[&::-webkit-slider-thumb]:hover:bg-gray-200"
+          className="min-w-20 max-w-25 h-1 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:hover:bg-gray-700 dark:[&::-webkit-slider-thumb]:bg-gray-400 dark:[&::-webkit-slider-thumb]:hover:bg-gray-200"
         />
       </div>
 
