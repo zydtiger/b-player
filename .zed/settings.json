@@ -1,0 +1,10 @@
+{
+  "file_scan_exclusions": [
+    "**/.claude",
+    "**/.git",
+    "**/node_modules",
+    "**/dist",
+    "**/dist-electron",
+    "**/.DS_Store",
+  ],
+}
