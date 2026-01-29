@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import {
   setIsPlaying,
@@ -139,7 +139,9 @@ const QueueHoverPanel: React.FC<QueueHoverPanelProps> = ({
     >
       {/* Header */}
       <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-        <h3 className="font-medium text-gray-900 dark:text-white">Queue ({queue.length} tracks)</h3>
+        <h3 className="font-medium text-gray-900 dark:text-white">
+          Queue ({playbackOrder.length} track{playbackOrder.length !== 1 ? "s" : ""})
+        </h3>
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
           Mode:{" "}
           {playbackMode === "sequential"
@@ -226,6 +228,12 @@ const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) =
     useAppSelector((state) => state.musicPlayer);
   const currentMusic = queue[currentIndex];
   const audioReadyRef = useRef(false);
+
+  // Calculate playback order for queue badge count
+  const playbackOrder = useMemo(
+    () => getPlaybackOrder(queue, currentIndex, playbackMode, shuffleBuffer, shuffleIndex),
+    [queue, currentIndex, playbackMode, shuffleBuffer, shuffleIndex],
+  );
 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -362,6 +370,7 @@ const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) =
       <audio
         ref={audioRef}
         src={`audio://${currentMusic.hash}`}
+        loop={playbackMode === "loop-single"}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handlePlayNext}
         onCanPlay={() => {
@@ -594,8 +603,8 @@ const PlayBar: React.FC<PlayBarProps> = ({ audioRef, volume, onVolumeChange }) =
             <path d="M4 18h.01" />
           </svg>
           {queue.length > 0 && (
-            <span className="absolute -top-1 -right-1 bg-blue-600 dark:bg-indigo-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-medium">
-              {queue.length}
+            <span className="absolute -top-1 -right-1 bg-blue-600 dark:bg-indigo-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-medium">
+              {playbackOrder.length}
             </span>
           )}
         </button>
