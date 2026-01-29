@@ -38,10 +38,23 @@ B-Player is a desktop music player that lets you:
 - **Custom Playlists** — Create your own collections
 - **Pin Favorites** — Keep important playlists at the top
 
+![Library View](demo/0.1.0/library.png)
+
+### Playlist Management
+- Create custom playlists to organize your music
+- Drag and drop tracks to reorder
+- Rename or delete playlists
+- Pin favorites for quick access
+
+![Playlist Gallery](demo/0.1.0/playlist.png)
+
 ### Playback Controls
 - Play/Pause, Next, Previous
 - Queue management with source tracking
 - Grid and list view modes
+- Playback modes: sequential, loop-single, shuffle
+
+![Play Queue](demo/0.1.0/queue.png)
 
 ### Right-Click Actions
 - Delete songs from library or specific playlists
